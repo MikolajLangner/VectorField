@@ -80,6 +80,17 @@ function differVectors(vectors::Array{T, 1})::Array{T, 1} where T <: ColorVector
 end
 
 
+# Add vector to a plot with its parameters
+function plotVector(vector::ColorVector, scene::Scene)
+
+    arrows!(scene, [vector.anchorPoint], [vector.direction],
+            arrowsize=0.05vector.size, linewidth=4vector.size,
+            linecolor=vector.color, arrowcolor=vector.color)
+    return scene
+
+end
+
+
 # Main function for 2D plotting
 function field2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real})
 
@@ -96,11 +107,7 @@ function field2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, R
 
     # Create a plot
     scene = Scene()
-    for vector in vectors
-        arrows!([vector.anchorPoint], [vector.direction],
-                arrowsize=0.05vector.size, linewidth=2vector.size,
-                linecolor=vector.color, arrowcolor=vector.color)
-    end
+    plotVector.(vectors, scene)
 
     # Display and return the plot
     scene |> display
@@ -110,7 +117,7 @@ end
 
 
 # Example
-field2D((x,y)->[x^2+y^2,x-y^2],(-1,1),(-1,1))
+field2D((x,y)->[y,-x],(-1,1),(-1,1))
 
 
 # Main fuction for 3D plotting
@@ -125,16 +132,12 @@ function field3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, R
     pointf(p::Point3f0) = f(p[1], p[2], p[3])
 
     # Create vectors
-    vectors = @. ColorVector3D(pointf(points), points, 10)
+    vectors = @. ColorVector3D(pointf(points), points, 2)
     vectors = differVectors(vectors)
 
     # Create a plot
     scene = Scene()
-    for vector in vectors
-        arrows!([vector.anchorPoint], [vector.direction],
-                arrowsize=0.05vector.size, linewidth=2vector.size,
-                linecolor=vector.color, arrowcolor=vector.color)
-    end
+    plotVector.(vectors, scene)
 
     # Display and return the plot
     scene |> display
@@ -144,7 +147,7 @@ end
 
 
 # Example
-field3D((x,y,z)->[x^2+y^2,x-y,z],(-3,2),(-1,2),(-1,2))
+field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
 
 
 end
