@@ -12,12 +12,13 @@ mutable struct ColorVector2D <: ColorVector
 
     magnitude::Float64
     direction::Point2f0
+    anchorPoint::Point2f0
     color::RGBf0
     size::Float64
 
-    ColorVector2D(point::Array{T, 1}, decreaser::Real) where T <: Real = new(norm(point),
-                                                            Point2f0(normalize(point)/decreaser),
-                                                            RGBf0(0, 0, 0), 1.0)
+    ColorVector2D(vector::Array{T, 1}, point::Point2f0, decreaser::Real) where T <: Real = new(norm(vector),
+                                                                        Point2f0(normalize(vector)/decreaser),
+                                                                        point, RGBf0(0, 0, 0), 1.0)
 
 end
 
@@ -26,12 +27,13 @@ mutable struct ColorVector3D <: ColorVector
 
     magnitude::Float64
     direction::Point3f0
+    anchorPoint::Point3f0
     color::RGBf0
     size::Float64
 
-    ColorVector3D(point::Array{T, 1}, decreaser::Real) where T <: Real = new(norm(point),
-                                                        Point3f0(normalize(point)/decreaser),
-                                                        RGBf0(0, 0, 0), 1.0)
+    ColorVector3D(vector::Array{T, 1}, point::Point3f0, decreaser::Real) where T <: Real = new(norm(vector),
+                                                                        Point3f0(normalize(vector)/decreaser),
+                                                                        point, RGBf0(0, 0, 0), 1.0)
 
 end
 
@@ -59,7 +61,6 @@ end
 
 function differVectors(vectors::Array{T, 1})::Array{T, 1} where T <: ColorVector
 
-    vectors = sort(vectors)
     vectors = changeLength.(vectors, vectors[end].magnitude)
     vectors = changeColor.(vectors, vectors[end].magnitude)
     return vectors
@@ -73,12 +74,12 @@ function field2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, R
                              for j in LinRange(ybounds[1], ybounds[2], 20)]
 
     pointf(p::Point2f0) = f(p[1], p[2])
-    vectors = @. ColorVector2D(pointf(points), 10)
+    vectors = @. ColorVector2D(pointf(points), points, 10)
     vectors = differVectors(vectors)
 
     scene = Scene()
-    for (point, vector) in zip(points, vectors)
-        arrows!([point], [vector.direction],
+    for vector in vectors
+        arrows!([vector.anchorPoint], [vector.direction],
                 arrowsize=0.05vector.size, linewidth=2vector.size,
                 linecolor=vector.color, arrowcolor=vector.color)
     end
@@ -100,12 +101,12 @@ function field3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, R
                                 for k in LinRange(zbounds[1], zbounds[2], 10)]
 
     pointf(p::Point3f0) = f(p[1], p[2], p[3])
-    vectors = @. ColorVector3D(pointf(points), 10)
+    vectors = @. ColorVector3D(pointf(points), points, 10)
     vectors = differVectors(vectors)
 
     scene = Scene()
-    for (point, vector) in zip(points, vectors)
-        arrows!([point], [vector.direction],
+    for vector in vectors
+        arrows!([vector.anchorPoint], [vector.direction],
                 arrowsize=0.05vector.size, linewidth=2vector.size,
                 linecolor=vector.color, arrowcolor=vector.color)
     end
@@ -117,7 +118,7 @@ end
 
 
 # Example
-field3D((x,y,z)->[x^2+y^2,x+y,z],(-1,1),(-1,1),(-1,1))
+field3D((x,y,z)->[x^2+y^2,x-y,z],(-3,2),(-1,2),(-1,2))
 
 
 end
