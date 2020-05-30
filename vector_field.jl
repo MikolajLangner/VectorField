@@ -3,6 +3,7 @@ module VectorField
 
 using Makie
 using LinearAlgebra
+using DifferentialEquations
 
 
 # Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
@@ -150,4 +151,80 @@ end
 field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
 
 
+function trajectory2D!(Vx::Function, Vy::Function;
+                                    xbounds::Tuple{Real, Real} = (-1, 1),
+                                    ybounds::Tuple{Real, Real} = (-1, 1),
+                                    xy0::Array{Float64, 1} = [0, 0],
+                                    tspan::Tuple{Real, Real} = (0, 1),
+                                    timepoints::Integer = 100,
+                                    linewidth::Real = 3)
+
+    function diffeqs(du,u, p, t)
+      x,y = u
+      du[1] = dx = Vx(x, y)
+      du[2] = dy = Vy(x, y)
+    end
+
+    prob = ODEProblem(diffeqs, float.(xy0),tspan)
+    sol = solve(prob)
+    ts = LinRange(tspan[1],tspan[2], timepoints)
+    X1, Y1 = sol(ts,idxs=1), sol(ts,idxs=2)
+    cut = min(length(X1), length(Y1))
+    X = X1[xbounds[1] .< X1 .< xbounds[2]]
+    Y = Y1[ybounds[1] .< Y1 .< ybounds[2]]
+    cut = min(length(X), length(Y))
+    X, Y = X[1:cut], Y[1:cut]
+    lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
+
+    return X1, Y1
+end
+
+# Example
+
+field2D((x,y)->[y,-x],(-1,1),(-1,1))
+trajectory2D!((x,y)->y,(x,y)->-x,
+                xbounds=(-1,1),ybounds=(-1,1),
+                xy0 = [0.5, 0.5], tspan=(0., 5.0),
+                timepoints=500, linewidth=3)
+
+
+function trajectory3D!(Vx::Function, Vy::Function, Vz::Function;
+                                    xbounds::Tuple{Real, Real} = (-1, 1),
+                                    ybounds::Tuple{Real, Real} = (-1, 1),
+                                    zbounds::Tuple{Real, Real} = (-1, 1),
+                                    xyz0::Array{Float64, 1} = [0, 0, 0],
+                                    tspan::Tuple{Real, Real} = (0, 1),
+                                    timepoints::Integer = 100,
+                                    linewidth::Real = 3)
+
+    function diffeqs(du,u, p, t)
+      x,y,z = u
+      du[1] = dx = Vx(x, y, z)
+      du[2] = dy = Vy(x, y, z)
+      du[3] = dz = Vz(x, y, z)
+    end
+
+    prob = ODEProblem(diffeqs, float.(xyz0),tspan)
+    sol = solve(prob)
+    ts = LinRange(tspan[1],tspan[2], timepoints)
+    X1, Y1, Z1 = sol(ts,idxs=1), sol(ts,idxs=2), sol(ts,idxs=3)
+    cut = min(length(X1), length(Y1), length(Z1))
+    X = X1[xbounds[1] .< X1 .< xbounds[2]]
+    Y = Y1[ybounds[1] .< Y1 .< ybounds[2]]
+    Z = Z1[zbounds[1] .< Z1 .< zbounds[2]]
+    cut = min(length(X), length(Y), length(Z))
+    X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
+    lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+
+    return X1, Y1, Z1
+end
+
+
+# Example
+
+field3D((x,y,z)->[2*x,-2*y,-2*z], (-2,2),(-2,2),(-2,2))
+trajectory3D!((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
+                xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2),
+                xyz0 = [0.5, 0.5, -2.], tspan=(0., 10.0),
+                timepoints=500, linewidth=4)
 end
