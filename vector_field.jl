@@ -4,6 +4,7 @@ module VectorField
 using Makie
 using LinearAlgebra
 using DifferentialEquations
+using ForwardDiff
 
 
 # Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
@@ -118,7 +119,7 @@ end
 
 
 # Example
-field2D((x,y)->[y,-x],(-1,1),(-1,1))
+field2D((x,y)->[y,x],(-1,1),(-1,1))
 
 
 # Main fuction for 3D plotting
@@ -174,7 +175,7 @@ function trajectory2D!(Vx::Function, Vy::Function;
     Y = Y1[ybounds[1] .< Y1 .< ybounds[2]]
     cut = min(length(X), length(Y))
     X, Y = X[1:cut], Y[1:cut]
-    lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
+    lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 
     return X1, Y1
 end
@@ -184,8 +185,8 @@ end
 field2D((x,y)->[y,-x],(-1,1),(-1,1))
 trajectory2D!((x,y)->y,(x,y)->-x,
                 xbounds=(-1,1),ybounds=(-1,1),
-                xy0 = [0.5, 0.5], tspan=(0., 5.0),
-                timepoints=500, linewidth=3)
+                xy0 = [0.95, 0.5], tspan=(0., 30.0),
+                timepoints=300, linewidth=3)
 
 
 function trajectory3D!(Vx::Function, Vy::Function, Vz::Function;
@@ -214,7 +215,7 @@ function trajectory3D!(Vx::Function, Vy::Function, Vz::Function;
     Z = Z1[zbounds[1] .< Z1 .< zbounds[2]]
     cut = min(length(X), length(Y), length(Z))
     X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
-    lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+    lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 
     return X1, Y1, Z1
 end
@@ -227,4 +228,61 @@ trajectory3D!((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
                 xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2),
                 xyz0 = [0.5, 0.5, -2.], tspan=(0., 10.0),
                 timepoints=500, linewidth=4)
+
+
+function gradientField2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
+                         showContour::Bool=:true)
+
+    points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
+                             for j in LinRange(ybounds[1], ybounds[2], 20)]
+
+    vectorf(v::Vector) = f(v[1], v[2])
+    ∇(p::Point2f0) = ForwardDiff.gradient(vectorf, [p...])
+
+    vectors = @. ColorVector2D(∇(points), points, 10)
+    vectors = differVectors(vectors)
+
+    scene = Scene()
+    plotVector.(vectors, scene)
+
+    if showContour
+        contour!(LinRange(xbounds[1], xbounds[2], 100),
+                 LinRange(ybounds[1], ybounds[2], 100),
+                 f.(LinRange(xbounds[1], xbounds[2], 100), LinRange(ybounds[1], ybounds[2], 100)'))
+    end
+
+    scene |> display
+    return scene
+
+end
+
+
+# Example
+gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
+
+
+function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
+                         zbounds::Tuple{Real, Real}, showContour::Bool=:true)
+
+    points = [Point3f0(i, j, k) for i in LinRange(xbounds[1], xbounds[2], 10)
+                             for j in LinRange(ybounds[1], ybounds[2], 10)
+                             for k in LinRange(zbounds[1], zbounds[2], 10)]
+
+    vectorf(v::Vector) = f(v[1], v[2], v[3])
+    ∇(p::Point3f0) = ForwardDiff.gradient(vectorf, [p...])
+
+    vectors = @. ColorVector3D(∇(points), points, 10)
+    vectors = differVectors(vectors)
+
+    scene = Scene()
+    plotVector.(vectors, scene)
+
+    scene |> display
+    return scene
+
+end
+
+# Example
+gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
+
 end
