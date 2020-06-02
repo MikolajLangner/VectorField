@@ -152,11 +152,13 @@ end
 field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
 
 
+# function for calculating position (x(t), y(t)) of an object
 function position2D(Vx::Function, Vy::Function;
-                    xy0::Array{Float64, 1} = [0, 0],
-                    tspan::Tuple{Float64, Float64} = (0, 1),
-                    timepoints::Integer = 100)
+                    xy0::Array{Float64, 1} = [0, 0], # starting position
+                    tspan::Tuple{Float64, Float64} = (0, 1), # time
+                    timepoints::Integer = 100) # timepoints for interpolation
 
+    # Define ∂x/∂t and ∂y/∂t
     function diffeqs(du,u, p, t)
         x,y = u
         du[1] = dx = Vx(x, y)
@@ -167,7 +169,7 @@ function position2D(Vx::Function, Vy::Function;
     sol = solve(prob)
     ts = LinRange(tspan[1],tspan[2], timepoints)
     X, Y = sol(ts,idxs=1), sol(ts,idxs=2)
-    return X, Y
+    return X, Y # X - Array of x coords, Y - Array of y coords
 end
 
 # Example
@@ -176,6 +178,7 @@ xk = X[end] # Current x position
 yk = Y[end] # Current y position
 
 
+# function for plotting trajectory based on calculations from "position2D"
 function trajectory2D!(X::RecursiveArrayTools.AbstractDiffEqArray,
                        Y::RecursiveArrayTools.AbstractDiffEqArray;
                        xbounds::Tuple{Real, Real} = (-1, 1),
@@ -184,9 +187,11 @@ function trajectory2D!(X::RecursiveArrayTools.AbstractDiffEqArray,
 
     X = X[xbounds[1] .< X .< xbounds[2]]
     Y = Y[ybounds[1] .< Y .< ybounds[2]]
+
+    # X and Y must have the same length for plotting
     cut = min(length(X), length(Y))
     X, Y = X[1:cut], Y[1:cut]
-    ts = LinRange(0, cut, 10*cut)
+    ts = LinRange(0, cut, 10*cut) # range only for color gradient
     lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 end
 
@@ -196,12 +201,13 @@ field2D((x,y)->[y,-x],(-1,1),(-1,1))
 trajectory2D!(X, Y, xbounds=(-1,1), ybounds=(-1,1), linewidth=3)
 
 
-
+# function for calculating position (x(t), y(t), z(t)) of an object
 function position3D(Vx::Function, Vy::Function, Vz::Function;
-                    xyz0::Array{Float64, 1} = [0, 0, 0],
-                    tspan::Tuple{Float64, Float64} = (0, 1),
-                    timepoints::Integer = 100)
+                    xyz0::Array{Float64, 1} = [0, 0, 0], # starting position
+                    tspan::Tuple{Float64, Float64} = (0, 1), # time
+                    timepoints::Integer = 100) # timepoints for interpolation
 
+    # Define ∂x/∂t, ∂y/∂t and ∂z/∂t
     function diffeqs(du,u, p, t)
         x,y,z = u
         du[1] = dx = Vx(x, y, z)
@@ -213,7 +219,7 @@ function position3D(Vx::Function, Vy::Function, Vz::Function;
     sol = solve(prob)
     ts = LinRange(tspan[1], tspan[2], timepoints)
     X, Y, Z = sol(ts,idxs=1), sol(ts,idxs=2), sol(ts,idxs=3)
-    return X, Y, Z
+    return X, Y, Z # X - Array of x coords, Y, Z similarly
 end
 
 # Example
@@ -226,6 +232,7 @@ yk2 = Y[end] # Current y position
 zk2 = Z[end] # Current z position
 
 
+# function for plotting trajectory based on calculations from "position3D"
 function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
                        Y::RecursiveArrayTools.AbstractDiffEqArray,
                        Z::RecursiveArrayTools.AbstractDiffEqArray;
@@ -237,9 +244,11 @@ function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     X = X[xbounds[1] .< X .< xbounds[2]]
     Y = Y[ybounds[1] .< Y .< ybounds[2]]
     Z = Z[zbounds[1] .< Z .< zbounds[2]]
+
+    # X, Y and Z must have the same length for plotting
     cut = min(length(X), length(Y), length(Z))
     X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
-    ts = LinRange(0, cut, 10*cut)
+    ts = LinRange(0, cut, 10*cut) # range only for color gradient
     lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 end
 
