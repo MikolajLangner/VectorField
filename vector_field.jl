@@ -260,27 +260,34 @@ field3D((x,y,z)->[2*x,-2*y,-2*z], (-2,2),(-2,2),(-2,2))
 trajectory3D!(X, Y, Z, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
 
 
+# Plot a vector field from gradient of given two-variables function
 function gradientField2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
                          showContour::Bool=:true)
 
+    # Create points from given intervals
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
                              for j in LinRange(ybounds[1], ybounds[2], 20)]
 
+    # Define functions to calculate gradient
     vectorf(v::Vector) = f(v[1], v[2])
     ∇(p::Point2f0) = ForwardDiff.gradient(vectorf, [p...])
 
+    # Create vectors with specified anchor points
     vectors = @. ColorVector2D(∇(points), points, 10)
     vectors = differVectors(vectors)
 
+    # Create a plot
     scene = Scene()
     plotVector.(vectors, scene)
 
+    # Plot contour, if needed
     if showContour
         contour!(LinRange(xbounds[1], xbounds[2], 100),
                  LinRange(ybounds[1], ybounds[2], 100),
                  f.(LinRange(xbounds[1], xbounds[2], 100), LinRange(ybounds[1], ybounds[2], 100)'))
     end
 
+    # Display and return the plot
     scene |> display
     return scene
 
@@ -294,19 +301,24 @@ gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
 function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
                          zbounds::Tuple{Real, Real}, showContour::Bool=:true)
 
+    # Create points from given intervals
     points = [Point3f0(i, j, k) for i in LinRange(xbounds[1], xbounds[2], 10)
-                             for j in LinRange(ybounds[1], ybounds[2], 10)
-                             for k in LinRange(zbounds[1], zbounds[2], 10)]
+                                for j in LinRange(ybounds[1], ybounds[2], 10)
+                                for k in LinRange(zbounds[1], zbounds[2], 10)]
 
+    # Define functions to calculate gradient
     vectorf(v::Vector) = f(v[1], v[2], v[3])
     ∇(p::Point3f0) = ForwardDiff.gradient(vectorf, [p...])
 
+    # Create vectors with specified anchor points
     vectors = @. ColorVector3D(∇(points), points, 10)
     vectors = differVectors(vectors)
 
+    # Create a plot
     scene = Scene()
     plotVector.(vectors, scene)
 
+    # Display and return the plot
     scene |> display
     return scene
 
