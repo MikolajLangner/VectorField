@@ -173,7 +173,7 @@ function position2D(Vx::Function, Vy::Function;
 end
 
 # Example
-X, Y = position2D((x, y)->y, (x, y)->-x, xy0=[-0.5, 0.5], tspan=(0., 3.))
+X, Y = position2D((x, y)->y, (x, y)->-x, xy0=[-0.5, 0.5], tspan=(0., 5.))
 xk = X[end] # Current x position
 yk = Y[end] # Current y position
 
@@ -192,13 +192,14 @@ function trajectory2D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     cut = min(length(X), length(Y))
     X, Y = X[1:cut], Y[1:cut]
     ts = LinRange(0, cut, 10*cut) # range only for color gradient
+    scatter!([X[end]], [Y[end]], markersize=xbounds[2]/20)
     lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 end
 
 # Example
 
-field2D((x,y)->[y,-x],(-1,1),(-1,1))
-trajectory2D!(X, Y, xbounds=(-1,1), ybounds=(-1,1), linewidth=3)
+field2D((x,y)->[y,-x],(-2,2),(-2,2))
+trajectory2D!(X, Y, xbounds=(-2,2), ybounds=(-2,2), linewidth=3)
 
 
 # function for calculating position (x(t), y(t), z(t)) of an object
@@ -249,6 +250,7 @@ function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     cut = min(length(X), length(Y), length(Z))
     X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
     ts = LinRange(0, cut, 10*cut) # range only for color gradient
+    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/20)
     lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 end
 
