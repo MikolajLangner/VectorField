@@ -5,6 +5,7 @@ using Makie
 using LinearAlgebra
 using DifferentialEquations
 using ForwardDiff
+using SymPy
 
 
 # Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
@@ -50,6 +51,28 @@ end
 Base.isless(v::ColorVector, w::ColorVector) = v.magnitude < w.magnitude ? true : false
 Base.isequal(v::ColorVector, w::ColorVector) = v.magnitude == w.magnitude ? true : false
 
+# Convert ℝ²➡ℝ² or ℝ³➡ℝ³ function into 2 or 3 ℝ➡ℝ functions
+function convertToMultiple(f::Function)
+
+    for method in methods(f)
+        symb = length(method.sig.parameters) == 4 ? symbols("x, y, z") : symbols("x, y")
+        functions = f(symb...)
+        new_functions = []
+        if length(functions) == 3
+            for func in functions
+                new_func(x, y, z) = func.subs(symb[1], x).subs(symb[2], y).subs(symb[3], z)
+                push!(new_functions, new_func)
+            end
+            return new_functions
+        else
+            for func in functions
+                new_func(x, y) = func.subs(symb[1], x).subs(symb[2], y)
+                push!(new_functions, new_func)
+            end
+            return new_functions
+        end
+    end
+end
 
 # Change the size of vector to the proportion of longest vector's magnitude
 function changeLength(v::ColorVector, longest::Real)
