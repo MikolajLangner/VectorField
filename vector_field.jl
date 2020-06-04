@@ -51,28 +51,6 @@ end
 Base.isless(v::ColorVector, w::ColorVector) = v.magnitude < w.magnitude ? true : false
 Base.isequal(v::ColorVector, w::ColorVector) = v.magnitude == w.magnitude ? true : false
 
-# Convert ℝ²➡ℝ² or ℝ³➡ℝ³ function into 2 or 3 ℝ➡ℝ functions
-function convertToMultiple(f::Function)
-
-    for method in methods(f)
-        symb = length(method.sig.parameters) == 4 ? symbols("x, y, z") : symbols("x, y")
-        functions = f(symb...)
-        new_functions = []
-        if length(functions) == 3
-            for func in functions
-                new_func(x, y, z) = func.subs(symb[1], x).subs(symb[2], y).subs(symb[3], z)
-                push!(new_functions, new_func)
-            end
-            return new_functions
-        else
-            for func in functions
-                new_func(x, y) = func.subs(symb[1], x).subs(symb[2], y)
-                push!(new_functions, new_func)
-            end
-            return new_functions
-        end
-    end
-end
 
 # Change the size of vector to the proportion of longest vector's magnitude
 function changeLength(v::ColorVector, longest::Real)
@@ -349,5 +327,41 @@ end
 
 # Example
 gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
+
+
+function divergence(position::Array{T, 1}, fx::Function, fy::Function,
+                    fz=missing) where T <: Real
+
+    vectorFunctions = []
+    vectorFuncX(v::Vector) = fx(v...)
+    vectorFuncY(v::Vector) = fy(v...)
+    push!(vectorFunctions, vectorFuncX)
+    push!(vectorFunctions, vectorFuncY)
+    if typeof(fz) <: Function
+        vectorFuncZ(v::Vector) = fz(v...)
+        push!(vectorFunctions, vectorFuncZ)
+    end
+
+    return sum([ForwardDiff.gradient(func, position)[variable] for (variable, func) in enumerate(vectorFunctions)])
+
+end
+
+
+function curl(position::Array{T, 1}, fx::Function, fy::Function,
+                fz=missing) where T <: Real
+
+    vectorFuncX(v::Vector) = fx(v...)
+    vectorFuncY(v::Vector) = fy(v...)
+    if typeof(fz) <: Function
+        vectorFuncZ(v::Vector) = fz(v...)
+        return [ForwardDiff.gradient(vectorFuncZ, position)[2] - ForwardDiff.gradient(vectorFuncY, position)[3],
+                ForwardDiff.gradient(vectorFuncX, position)[3] - ForwardDiff.gradient(vectorFuncZ, position)[1],
+                ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+    else
+        return [0, 0, ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+    end
+
+end
+
 
 end
