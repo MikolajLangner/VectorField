@@ -327,4 +327,28 @@ end
 # Example
 gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
 
+
+function animate2D(scene::Scene,
+                   X::RecursiveArrayTools.AbstractDiffEqArray,
+                   Y::RecursiveArrayTools.AbstractDiffEqArray,
+                   title::String;
+                   xbounds::Tuple{Real, Real} = (-1, 1),
+                   ybounds::Tuple{Real, Real} = (-1, 1),
+                   linewidth::Real = 3,
+                   fps::Integer=24)
+
+    lines!(scene, [1])
+    lines!(scene, [1])
+    record(scene, title, 1:length(X)-1; framerate = fps) do i
+       delete!(scene, scene[end])
+       delete!(scene, scene[end])
+       trajectory2D!(X[1:i], Y[1:i], xbounds=xbounds, ybounds=ybounds)
+   end
+end
+
+# Example
+s = field2D((x,y)->[sin(x)+sin(y), sin(x)-sin(y)], (-3,3),(-3,3))
+X, Y = position2D((x, y)->sin(x)+sin(y), (x, y)->sin(x)-sin(y), xy0=[-0.3, 1], tspan=(0., 5.))
+animate2D(s, X, Y, "Example.gif", xbounds=(-3, 3), ybounds=(-3, 3), fps=24)
+
 end
