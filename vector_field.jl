@@ -5,6 +5,7 @@ using Makie
 using LinearAlgebra
 using DifferentialEquations
 using ForwardDiff
+using SymPy
 
 
 # Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
@@ -326,6 +327,41 @@ end
 
 # Example
 gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
+
+
+function divergence(position::Array{T, 1}, fx::Function, fy::Function,
+                    fz=missing) where T <: Real
+
+    vectorFunctions = []
+    vectorFuncX(v::Vector) = fx(v...)
+    vectorFuncY(v::Vector) = fy(v...)
+    push!(vectorFunctions, vectorFuncX)
+    push!(vectorFunctions, vectorFuncY)
+    if typeof(fz) <: Function
+        vectorFuncZ(v::Vector) = fz(v...)
+        push!(vectorFunctions, vectorFuncZ)
+    end
+
+    return sum([ForwardDiff.gradient(func, position)[variable] for (variable, func) in enumerate(vectorFunctions)])
+
+end
+
+
+function curl(position::Array{T, 1}, fx::Function, fy::Function,
+                fz=missing) where T <: Real
+
+    vectorFuncX(v::Vector) = fx(v...)
+    vectorFuncY(v::Vector) = fy(v...)
+    if typeof(fz) <: Function
+        vectorFuncZ(v::Vector) = fz(v...)
+        return [ForwardDiff.gradient(vectorFuncZ, position)[2] - ForwardDiff.gradient(vectorFuncY, position)[3],
+                ForwardDiff.gradient(vectorFuncX, position)[3] - ForwardDiff.gradient(vectorFuncZ, position)[1],
+                ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+    else
+        return [0, 0, ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+    end
+
+end
 
 
 function animate2D(scene::Scene,
