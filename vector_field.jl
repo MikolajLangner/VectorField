@@ -1,11 +1,10 @@
-module VectorField
+# module VectorField
 
 
 using Makie
 using LinearAlgebra
 using DifferentialEquations
 using ForwardDiff
-using SymPy
 
 
 # Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
@@ -120,7 +119,7 @@ end
 
 
 # Example
-field2D((x,y)->[y,x],(-1,1),(-1,1))
+# field2D((x,y)->[y,x],(-1,1),(-1,1))
 
 
 # Main fuction for 3D plotting
@@ -150,7 +149,7 @@ end
 
 
 # Example
-field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
+# field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
 
 
 # function for calculating position (x(t), y(t)) of an object
@@ -174,9 +173,9 @@ function position2D(Vx::Function, Vy::Function;
 end
 
 # Example
-X, Y = position2D((x, y)->y, (x, y)->-x, xy0=[-0.5, 0.5], tspan=(0., 5.))
-xk = X[end] # Current x position
-yk = Y[end] # Current y position
+# X, Y = position2D((x, y)->y, (x, y)->-x, xy0=[-0.5, 0.5], tspan=(0., 5.))
+# xk = X[end] # Current x position
+# yk = Y[end] # Current y position
 
 
 # function for plotting trajectory based on calculations from "position2D"
@@ -199,8 +198,8 @@ end
 
 # Example
 
-field2D((x,y)->[y,-x],(-2,2),(-2,2))
-trajectory2D!(X, Y, xbounds=(-2,2), ybounds=(-2,2), linewidth=3)
+# field2D((x,y)->[y,-x],(-2,2),(-2,2))
+# trajectory2D!(X, Y, xbounds=(-2,2), ybounds=(-2,2), linewidth=3)
 
 
 # function for calculating position (x(t), y(t), z(t)) of an object
@@ -226,12 +225,12 @@ end
 
 # Example
 
-X, Y, Z = position3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
-                    xyz0 = [0.5, 0.5, -2.], tspan=(0., 10.0),
-                    timepoints=500)
-xk2 = X[end] # Current x position
-yk2 = Y[end] # Current y position
-zk2 = Z[end] # Current z position
+# X, Y, Z = position3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
+#                     xyz0 = [0.5, 0.5, -2.], tspan=(0., 10.0),
+#                     timepoints=500)
+# xk2 = X[end] # Current x position
+# yk2 = Y[end] # Current y position
+# zk2 = Z[end] # Current z position
 
 
 # function for plotting trajectory based on calculations from "position3D"
@@ -251,14 +250,35 @@ function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     cut = min(length(X), length(Y), length(Z))
     X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
     ts = LinRange(0, cut, 10*cut) # range only for color gradient
-    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/20)
+    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/30)
     lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC) |> display
 end
 
+
+function trajectory3D(X::RecursiveArrayTools.AbstractDiffEqArray,
+                      Y::RecursiveArrayTools.AbstractDiffEqArray,
+                      Z::RecursiveArrayTools.AbstractDiffEqArray;
+                      xbounds::Tuple{Real, Real} = (-1, 1),
+                      ybounds::Tuple{Real, Real} = (-1, 1),
+                      zbounds::Tuple{Real, Real} = (-1, 1),
+                      linewidth::Real = 3)
+
+    X = X[xbounds[1] .< X .< xbounds[2]]
+    Y = Y[ybounds[1] .< Y .< ybounds[2]]
+    Z = Z[zbounds[1] .< Z .< zbounds[2]]
+
+    # X, Y and Z must have the same length for plotting
+    cut = min(length(X), length(Y), length(Z))
+    X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
+    ts = LinRange(0, cut, 10*cut) # range only for color gradient
+    lines(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/30) |> display
+    return AbstractPlotting.current_scene()
+end
 # Example
 
-field3D((x,y,z)->[2*x,-2*y,-2*z], (-2,2),(-2,2),(-2,2))
-trajectory3D!(X, Y, Z, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
+# field3D((x,y,z)->[2*x,-2*y,-2*z], (-2,2),(-2,2),(-2,2))
+# trajectory3D!(X, Y, Z, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
 
 
 # Plot a vector field from gradient of given two-variables function
@@ -296,7 +316,7 @@ end
 
 
 # Example
-gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
+# gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
 
 
 function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
@@ -326,7 +346,7 @@ function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple
 end
 
 # Example
-gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
+# gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
 
 
 function divergence(position::Array{T, 1}, fx::Function, fy::Function,
@@ -364,27 +384,73 @@ function curl(position::Array{T, 1}, fx::Function, fy::Function,
 end
 
 
-function animate2D(scene::Scene,
-                   X::RecursiveArrayTools.AbstractDiffEqArray,
+function animate2D(X::RecursiveArrayTools.AbstractDiffEqArray,
                    Y::RecursiveArrayTools.AbstractDiffEqArray,
                    title::String;
                    xbounds::Tuple{Real, Real} = (-1, 1),
                    ybounds::Tuple{Real, Real} = (-1, 1),
                    linewidth::Real = 3,
-                   fps::Integer=24)
+                   fps::Integer=24,
+                   drawField::Bool=false,
+                   Field::Scene=Scene())
 
-    lines!(scene, [1])
-    lines!(scene, [1])
+    if drawField == true
+        scene = Field
+        lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+        lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+    else
+         scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], visible=false)
+         lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+         lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+    end
     record(scene, title, 1:length(X)-1; framerate = fps) do i
-       delete!(scene, scene[end])
-       delete!(scene, scene[end])
-       trajectory2D!(X[1:i], Y[1:i], xbounds=xbounds, ybounds=ybounds)
+          delete!(scene, scene[end])
+          delete!(scene, scene[end])
+          trajectory2D!(X[1:i], Y[1:i], xbounds=xbounds, ybounds=ybounds, linewidth=linewidth)
    end
 end
 
-# Example
-s = field2D((x,y)->[sin(x)+sin(y), sin(x)-sin(y)], (-3,3),(-3,3))
-X, Y = position2D((x, y)->sin(x)+sin(y), (x, y)->sin(x)-sin(y), xy0=[-0.3, 1], tspan=(0., 5.))
-animate2D(s, X, Y, "Example.gif", xbounds=(-3, 3), ybounds=(-3, 3), fps=24)
 
+
+
+# Example
+s = field2D((x,y)->[-y, cos(x-y)], (-3,3),(-3,3))
+
+X, Y = position2D((x, y)->-y, (x, y)->cos(x-y), xy0=[-1.5, -1.5], tspan=(0., 5.))
+animate2D(X, Y, "Example2DT.gif", xbounds=(-3, 3), ybounds=(-3, 3))
+
+
+function animate3D(
+                   X::RecursiveArrayTools.AbstractDiffEqArray,
+                   Y::RecursiveArrayTools.AbstractDiffEqArray,
+                   Z::RecursiveArrayTools.AbstractDiffEqArray,
+                   title::String;
+                   xbounds::Tuple{Real, Real} = (-1, 1),
+                   ybounds::Tuple{Real, Real} = (-1, 1),
+                   zbounds::Tuple{Real, Real} = (-1, 1),
+                   linewidth::Real = 3,
+                   fps::Integer=24,
+                   drawField::Bool=false,
+                   Field::Scene=Scene())
+
+    if drawField == true
+      scene = Field
+      lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
+      lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
+   else
+       scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2], visible=false)
+       lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
+       lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
+   end
+    record(scene, title, 1:length(X)-1; framerate = fps) do i
+       delete!(scene, scene[end])
+       delete!(scene, scene[end])
+       trajectory3D!(X[1:i], Y[1:i], Z[1:i], xbounds=xbounds, ybounds=ybounds, zbounds=zbounds, linewidth=linewidth)
+
+   end
 end
+
+X, Y, Z = position3D((x, y, z)-> y, (x, y, z)-> -x, (x, y, z)-> 2, xyz0=[0.5, -0.5, -1.5], tspan=(0., 7.))
+animate3D(X, Y, Z, "Example3D.gif", xbounds=(-5, 5), ybounds=(-5, 5), zbounds=(-5, 5), fps=24)
+
+# end
