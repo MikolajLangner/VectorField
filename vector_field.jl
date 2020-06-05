@@ -429,31 +429,56 @@ function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
 end
 
 
-function animate2D(X::RecursiveArrayTools.AbstractDiffEqArray,
-                   Y::RecursiveArrayTools.AbstractDiffEqArray,
-                   title::String;
-                   xbounds::Tuple{Real, Real} = (-1, 1),
-                   ybounds::Tuple{Real, Real} = (-1, 1),
-                   linewidth::Real = 3,
-                   fps::Integer=24,
-                   drawField::Bool=false,
-                   Field::Scene=Scene())
+function animate2D(Fx::Function, Fy::Function, title::String;
+                        showField::Bool = :false,
+                        startPoints::Array = [[0, 0]], # starting position
+                        time::Tuple{Real, Real} = (0, 1), # time
+                        timePoints::Integer = 100,
+                        xbounds::Tuple{Real, Real} = (-1, 1),
+                        ybounds::Tuple{Real, Real} = (-1, 1),
+                        fps::Integer = 24,
+                        linewidth::Real = 3) where T <: Real
 
-    if drawField == true
-        scene = Field
-        lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
-        lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
-    else
-         scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], visible=false)
-         lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
-         lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+    xys = [] # Array for tuples: [(X1, Y1), (X2, Y2), ...]
+    for startPoint in startPoints
+        X, Y = positions2D(Fx, Fy, startPoint = startPoint, time = time, timePoints = timePoints)
+        X = X[xbounds[1] .< X .< xbounds[2]]
+        Y = Y[ybounds[1] .< Y .< ybounds[2]]
+        cut = min(length(X), length(Y)) # X and Y must have the same length for plotting
+        X, Y = X[1:cut], Y[1:cut] # X and Y must have the same length for plotting
+        push!(xys, (X, Y)) # Add particle's coordinates to main Array
     end
-    record(scene, title, 1:length(X)-1; framerate = fps) do i
-          delete!(scene, scene[end])
-          delete!(scene, scene[end])
-          trajectory2D!(X[1:i], Y[1:i], xbounds=xbounds, ybounds=ybounds, linewidth=linewidth)
-   end
+
+    if showField
+        scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
+        for xy in xys # some plots for future removing
+            lines!([1], [1], visible=false)
+            lines!([1], [1], visible=false)
+        end
+    else
+        scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+        for xy in xys # some plots for future removing
+            lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
+        end
+    end
+
+    color_g = min(length(xys[1][1]), length(xys[1][2])) # color gradient
+    ts = LinRange(0, color_g, 10*color_g) # range only for color gradient
+
+    record(scene, title, 1:length(xys[1][1])-1; framerate = fps) do i
+        for xy in xys # first removing: useless plots, every next time: old trajectory and dot
+            delete!(scene, scene[end])
+            delete!(scene, scene[end])
+        end
+        for xy in xys # draw new trajectory and new dot
+          lines!(scene, xy[1][1:i], xy[2][1:i], linewidth=linewidth, color=ts, colormap=:grayC)
+          scatter!(scene, [xy[1][i]], [xy[2][i]], markersize=xbounds[2]/20)
+        end
+    end
 end
+
+animate2DTEST((x, y)->y, (x, y)->-x, "Example2D.gif",
+xbounds=(-1, 1), ybounds=(-1, 1), startPoints=[[0.5, 0.5], [-0.5, 0.5], [0.6, 0.2], [-0.4, -0.4], [0.1, -0.1]], time=(0., 5.), showField=:true)
 
 
 function animate3D(
