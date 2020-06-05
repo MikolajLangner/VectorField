@@ -5,10 +5,9 @@ using Makie
 using LinearAlgebra
 using DifferentialEquations
 using ForwardDiff
-using SymPy
 
 
-# Supertype of ColorVectors (vectors with their colors, anchorPoints, etc).
+# Supertype of ColorVectors (vectors with their colors, anchor points, etc).
 abstract type ColorVector end
 
 
@@ -95,14 +94,16 @@ end
 
 
 # Main function for 2D plotting
-function field2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real})
+function field2D(Fx::Function, Fy::Function;
+                xbounds::Tuple{Real, Real} = (-1, 1),
+                ybounds::Tuple{Real, Real} = (-1, 1))
 
     # Create points in ℝ²
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
                              for j in LinRange(ybounds[1], ybounds[2], 20)]
 
     # Define new function; `f` that takes points in ℝ²
-    pointf(p::Point2f0) = f(p[1], p[2])
+    pointf(p::Point2f0) = [Fx(p...), Fy(p...)]
 
     # Create vectors
     vectors = @. ColorVector2D(pointf(points), points, 10)
@@ -120,11 +121,15 @@ end
 
 
 # Example
-field2D((x,y)->[y,x],(-1,1),(-1,1))
+field2D((x,y)->y, (x, y)->x,
+        xbounds = (-1,1), ybounds = (-1,1))
 
 
 # Main fuction for 3D plotting
-function field3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real}, zbounds::Tuple{Real,Real})
+function field3D(Fx::Function, Fy::Function, Fz::Function;
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    zbounds::Tuple{Real, Real} = (-1, 1))
 
     # Create points in ℝ³
     points = [Point3f0(i, j, k) for i in LinRange(xbounds[1], xbounds[2], 10)
@@ -132,7 +137,7 @@ function field3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, R
                                 for k in LinRange(zbounds[1], zbounds[2], 10)]
 
     # Define new function; `f` that takes points in ℝ³
-    pointf(p::Point3f0) = f(p[1], p[2], p[3])
+    pointf(p::Point3f0) = [Fx(p...), Fy(p...), Fz(p...)]
 
     # Create vectors
     vectors = @. ColorVector3D(pointf(points), points, 2)
@@ -150,42 +155,48 @@ end
 
 
 # Example
-field3D((x,y,z)->[y*z,x*z,x*y],(-2,2),(-2,2),(-2,2))
+field3D((x,y,z)->y*z, (x,y,z)->x*z, (x, y, z)->x*y,
+        xbounds = (-2,2), ybounds = (-2,2), zbounds = (-2,2))
 
 
 # function for calculating position (x(t), y(t)) of an object
-function position2D(Vx::Function, Vy::Function;
-                    xy0::Array{Float64, 1} = [0, 0], # starting position
-                    tspan::Tuple{Float64, Float64} = (0, 1), # time
-                    timepoints::Integer = 100) # timepoints for interpolation
+function positions2D(Fx::Function, Fy::Function;
+                    startPoint::Array{T, 1} = [0, 0], # starting position
+                    time::Tuple{Real, Real} = (0, 1), # time
+                    timePoints::Integer = 100) where T <: Real # timepoints for interpolation
 
     # Define ∂x/∂t and ∂y/∂t
-    function diffeqs(du,u, p, t)
-        x,y = u
-        du[1] = dx = Vx(x, y)
-        du[2] = dy = Vy(x, y)
+    function diffeqs(du, u, p, t)
+        x, y = u
+        du[1] = dx = Fx(x, y)
+        du[2] = dy = Fy(x, y)
     end
 
-    prob = ODEProblem(diffeqs, xy0, tspan)
+    prob = ODEProblem(diffeqs, Float64.(startPoint), Float64.(time))
     sol = solve(prob)
-    ts = LinRange(tspan[1],tspan[2], timepoints)
-    X, Y = sol(ts,idxs=1), sol(ts,idxs=2)
+    ts = LinRange(time[1], time[2], timePoints)
+    X, Y = sol(ts, idxs = 1), sol(ts, idxs = 2)
     return X, Y # X - Array of x coords, Y - Array of y coords
+
 end
 
 # Example
-X, Y = position2D((x, y)->y, (x, y)->-x, xy0=[-0.5, 0.5], tspan=(0., 5.))
+X, Y = positions2D((x, y)->y, (x, y)->-x, startPoint=[-0.5, 0.5], time=(0, 5))
 xk = X[end] # Current x position
 yk = Y[end] # Current y position
 
 
 # function for plotting trajectory based on calculations from "position2D"
-function trajectory2D!(X::RecursiveArrayTools.AbstractDiffEqArray,
-                       Y::RecursiveArrayTools.AbstractDiffEqArray;
-                       xbounds::Tuple{Real, Real} = (-1, 1),
-                       ybounds::Tuple{Real, Real} = (-1, 1),
-                       linewidth::Real = 3)
+function trajectory2D(Fx::Function, Fy::Function;
+                        showField::Bool = :false,
+                        startPoint::Array{T, 1} = [0, 0], # starting position
+                        time::Tuple{Real, Real} = (0, 1), # time
+                        timePoints::Integer = 100,
+                        xbounds::Tuple{Real, Real} = (-1, 1),
+                        ybounds::Tuple{Real, Real} = (-1, 1),
+                        linewidth::Real = 3) where T <: Real
 
+    X, Y = positions2D(Fx, Fy, startPoint = startPoint, time = time, timePoints = timePoints)
     X = X[xbounds[1] .< X .< xbounds[2]]
     Y = Y[ybounds[1] .< Y .< ybounds[2]]
 
@@ -193,55 +204,69 @@ function trajectory2D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     cut = min(length(X), length(Y))
     X, Y = X[1:cut], Y[1:cut]
     ts = LinRange(0, cut, 10*cut) # range only for color gradient
-    scatter!([X[end]], [Y[end]], markersize=xbounds[2]/20)
-    lines!(X, Y, linewidth=linewidth, color=ts, colormap=:grayC) |> display
+
+    if showField
+        scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
+        lines!(scene, X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
+    else
+        scene = lines(X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
+    end
+
+    scatter!(scene, [X[end]], [Y[end]], markersize=xbounds[2]/20)
+
+    scene |> display
+    return scene
+
 end
 
 # Example
 
-field2D((x,y)->[y,-x],(-2,2),(-2,2))
-trajectory2D!(X, Y, xbounds=(-2,2), ybounds=(-2,2), linewidth=3)
+trajectory2D((x,y)->-y, (x,y)->x, xbounds=(-2,2), ybounds=(-2,2), linewidth=3, startPoint = [1, 1])
 
 
 # function for calculating position (x(t), y(t), z(t)) of an object
-function position3D(Vx::Function, Vy::Function, Vz::Function;
-                    xyz0::Array{Float64, 1} = [0, 0, 0], # starting position
-                    tspan::Tuple{Float64, Float64} = (0, 1), # time
-                    timepoints::Integer = 100) # timepoints for interpolation
+function positions3D(Fx::Function, Fy::Function, Fz::Function;
+                    startPoint::Array{T, 1} = [0, 0, 0], # starting position
+                    time::Tuple{Real, Real} = (0, 1), # time
+                    timePoints::Integer = 100) where T <: Real # timepoints for interpolation
 
     # Define ∂x/∂t, ∂y/∂t and ∂z/∂t
-    function diffeqs(du,u, p, t)
-        x,y,z = u
-        du[1] = dx = Vx(x, y, z)
-        du[2] = dy = Vy(x, y, z)
-        du[3] = dz = Vz(x, y, z)
+    function diffeqs(du, u, p, t)
+        x, y, z = u
+        du[1] = dx = Fx(x, y, z)
+        du[2] = dy = Fy(x, y, z)
+        du[3] = dz = Fz(x, y, z)
     end
 
-    prob = ODEProblem(diffeqs, xyz0,tspan)
+    prob = ODEProblem(diffeqs, Float64.(startPoint), Float64.(time))
     sol = solve(prob)
-    ts = LinRange(tspan[1], tspan[2], timepoints)
-    X, Y, Z = sol(ts,idxs=1), sol(ts,idxs=2), sol(ts,idxs=3)
+    ts = LinRange(time[1], time[2], timePoints)
+    X, Y, Z = sol(ts, idxs = 1), sol(ts, idxs = 2), sol(ts, idxs = 3)
     return X, Y, Z # X - Array of x coords, Y, Z similarly
+
 end
 
-# Example
 
-X, Y, Z = position3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
-                    xyz0 = [0.5, 0.5, -2.], tspan=(0., 10.0),
-                    timepoints=500)
+# Example
+X, Y, Z = positions3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
+                        startPoint = [0.5, 0.5, -2], time=(0, 10), timePoints=500)
 xk2 = X[end] # Current x position
 yk2 = Y[end] # Current y position
 zk2 = Z[end] # Current z position
 
 
 # function for plotting trajectory based on calculations from "position3D"
-function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
-                       Y::RecursiveArrayTools.AbstractDiffEqArray,
-                       Z::RecursiveArrayTools.AbstractDiffEqArray;
-                       xbounds::Tuple{Real, Real} = (-1, 1),
-                       ybounds::Tuple{Real, Real} = (-1, 1),
-                       zbounds::Tuple{Real, Real} = (-1, 1),
-                       linewidth::Real = 3)
+function trajectory3D(Fx::Function, Fy::Function, Fz::Function;
+                        showField::Bool = :false,
+                        startPoint::Array{T, 1} = [0, 0, 0],
+                        time::Tuple{Real, Real} = (0, 1),
+                        timePoints::Integer = 100,
+                        xbounds::Tuple{Real, Real} = (-1, 1),
+                        ybounds::Tuple{Real, Real} = (-1, 1),
+                        zbounds::Tuple{Real, Real} = (-1, 1),
+                        linewidth::Real = 3) where T <: Real
+
+    X, Y, Z = positions3D(Fx, Fy, Fz, startPoint = startPoint, time = time, timePoints = timePoints)
 
     X = X[xbounds[1] .< X .< xbounds[2]]
     Y = Y[ybounds[1] .< Y .< ybounds[2]]
@@ -251,26 +276,39 @@ function trajectory3D!(X::RecursiveArrayTools.AbstractDiffEqArray,
     cut = min(length(X), length(Y), length(Z))
     X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
     ts = LinRange(0, cut, 10*cut) # range only for color gradient
-    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/20)
-    lines!(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC) |> display
+
+    if showField
+        scene = field3D(Fx, Fy, Fz,
+                    xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
+        lines!(scene, X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+    else
+        scene = lines(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+    end
+
+    scatter!(scene, [X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/20)
+
+    scene |> display
+    return scene
+
 end
 
 # Example
-
-field3D((x,y,z)->[2*x,-2*y,-2*z], (-2,2),(-2,2),(-2,2))
-trajectory3D!(X, Y, Z, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
+trajectory3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
+                        startPoint = [0.5, 0.5, -2], time=(0, 100),
+                        timePoints=1000, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
 
 
 # Plot a vector field from gradient of given two-variables function
-function gradientField2D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
-                         showContour::Bool=:true)
+function gradientField2D(f::Function,
+                            xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
+                            showContour::Bool=:true)
 
     # Create points from given intervals
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
                              for j in LinRange(ybounds[1], ybounds[2], 20)]
 
     # Define functions to calculate gradient
-    vectorf(v::Vector) = f(v[1], v[2])
+    vectorf(v::Vector) = f(v...)
     ∇(p::Point2f0) = ForwardDiff.gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
@@ -299,8 +337,11 @@ end
 gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
 
 
-function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
-                         zbounds::Tuple{Real, Real}, showContour::Bool=:true)
+function gradientField3D(f::Function;
+                            xbounds::Tuple{Real, Real} = (-1, 1),
+                            ybounds::Tuple{Real, Real} = (-1, 1),
+                            zbounds::Tuple{Real, Real} = (-1, 1),
+                            showContour::Bool = :false)
 
     # Create points from given intervals
     points = [Point3f0(i, j, k) for i in LinRange(xbounds[1], xbounds[2], 10)
@@ -308,7 +349,7 @@ function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple
                                 for k in LinRange(zbounds[1], zbounds[2], 10)]
 
     # Define functions to calculate gradient
-    vectorf(v::Vector) = f(v[1], v[2], v[3])
+    vectorf(v::Vector) = f(v...)
     ∇(p::Point3f0) = ForwardDiff.gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
@@ -323,7 +364,7 @@ function gradientField3D(f::Function, xbounds::Tuple{Real, Real}, ybounds::Tuple
     scene |> display
     return scene
 
-end
+# end
 
 # Example
 gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
@@ -342,18 +383,19 @@ function divergence(position::Array{T, 1}, fx::Function, fy::Function,
         push!(vectorFunctions, vectorFuncZ)
     end
 
-    return sum([ForwardDiff.gradient(func, position)[variable] for (variable, func) in enumerate(vectorFunctions)])
+    return sum([ForwardDiff.gradient(func, position)[variable]
+                for (variable, func) in enumerate(vectorFunctions)])
 
 end
 
 
-function curl(position::Array{T, 1}, fx::Function, fy::Function,
+function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
                 fz=missing) where T <: Real
 
-    vectorFuncX(v::Vector) = fx(v...)
-    vectorFuncY(v::Vector) = fy(v...)
-    if typeof(fz) <: Function
-        vectorFuncZ(v::Vector) = fz(v...)
+    vectorFuncX(v::Vector) = Fx(v...)
+    vectorFuncY(v::Vector) = Fy(v...)
+    if typeof(Fz) <: Function
+        vectorFuncZ(v::Vector) = Fz(v...)
         return [ForwardDiff.gradient(vectorFuncZ, position)[2] - ForwardDiff.gradient(vectorFuncY, position)[3],
                 ForwardDiff.gradient(vectorFuncX, position)[3] - ForwardDiff.gradient(vectorFuncZ, position)[1],
                 ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
