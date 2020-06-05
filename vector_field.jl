@@ -51,6 +51,34 @@ Base.isless(v::ColorVector, w::ColorVector) = v.magnitude < w.magnitude ? true :
 Base.isequal(v::ColorVector, w::ColorVector) = v.magnitude == w.magnitude ? true : false
 
 
+abstract type Body end
+
+
+mutable struct Body2D <: Body
+
+    X::Array
+    Y::Array
+    colors::LinRange
+    inBounds::Bool
+
+    Body2D(t::Tuple) = new(t[1], t[2], LinRange(0, 1, 100), :true)
+
+end
+
+
+mutable struct Body3D <: Body
+
+    X::Array
+    Y::Array
+    Z::Array
+    colors::LinRange
+    inBounds::Bool
+
+    Body3D(t::Tuple) = new(t[1], t[2], t[3], LinRange(0, 1, 100), :true)
+
+end
+
+
 # Change the size of vector to the proportion of longest vector's magnitude
 function changeLength(v::ColorVector, longest::Real)
 
@@ -120,11 +148,6 @@ function field2D(Fx::Function, Fy::Function;
 end
 
 
-# Example
-field2D((x,y)->y, (x, y)->x,
-        xbounds = (-1,1), ybounds = (-1,1))
-
-
 # Main fuction for 3D plotting
 function field3D(Fx::Function, Fy::Function, Fz::Function;
                     xbounds::Tuple{Real, Real} = (-1, 1),
@@ -154,14 +177,8 @@ function field3D(Fx::Function, Fy::Function, Fz::Function;
 end
 
 
-# Example
-field3D((x,y,z)->y*z, (x,y,z)->x*z, (x, y, z)->x*y,
-        xbounds = (-2,2), ybounds = (-2,2), zbounds = (-2,2))
-
-
 # function for calculating position (x(t), y(t)) of an object
-function positions2D(Fx::Function, Fy::Function;
-                    startPoint::Array{T, 1} = [0, 0], # starting position
+function positions2D(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
                     timePoints::Integer = 100) where T <: Real # timepoints for interpolation
 
@@ -180,53 +197,89 @@ function positions2D(Fx::Function, Fy::Function;
 
 end
 
-# Example
-X, Y = positions2D((x, y)->y, (x, y)->-x, startPoint=[-0.5, 0.5], time=(0, 5))
-xk = X[end] # Current x position
-yk = Y[end] # Current y position
+
+function cutPositions(body::Body;
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    zbounds::Tuple{Real, Real} = (-1, 1))
+
+    body.X = body.X[xbounds[1] .< body.X .< xbounds[2]]
+    body.Y = body.Y[ybounds[1] .< body.Y .< ybounds[2]]
+    if typeof(body) == Body3D
+        body.Z = body.Z[zbounds[1] .< body.Z .< zbounds[2]]
+        # X and Y must have the same length for plotting
+        cut = min(length(object.X), length(object.Y))
+        if cut > 0
+            body.X = body.X[1:cut]
+            body.Y = body.Y[1:cut]
+            body.Z = body.Z[1:cut]
+            body.colors = LinRange(0, cut, 10*cut)
+        else
+            body.inBounds = :false
+        end
+    else
+        cut = min(length(object.X), length(object.Y))
+        if cut > 0
+            body.X = body.X[1:cut]
+            body.Y =  body.Y[1:cut]
+            body.colors = LinRange(0, cut, 10*cut)
+        else
+            body.inBounds = :false
+        end
+    end
+
+    return body
+
+end
+
+
+function plotBody(scene::Scene, body::Body, linewidth::Real)
+
+    if body.inBounds
+        if typeof(body) == Body3D
+            lines!(scene, body.X, body.Y, body.Z,
+                    linewidth = linewidth, color = body.colors, colormap = :grayC)
+            scatter!(scene, [body.X[end]], [body.Y[end]], [body.Z[end]], markersize=body.X[end]/20)
+        else
+            lines!(scene, body.X, body.Y,
+                    linewidth = linewidth, color = body.colors, colormap = :grayC)
+            scatter!(scene, [body.X[end]], [body.Y[end]], markersize=body.X[end]/20)
+        end
+    end
+
+    return scene
+
+end
 
 
 # function for plotting trajectory based on calculations from "position2D"
-function trajectory2D(Fx::Function, Fy::Function;
+function trajectory2D(Fx::Function, Fy::Function, startPoint::Array{Array{T, 1}, 1} = [[0, 0]];  # starting position
                         showField::Bool = :false,
-                        startPoint::Array{T, 1} = [0, 0], # starting position
                         time::Tuple{Real, Real} = (0, 1), # time
                         timePoints::Integer = 100,
                         xbounds::Tuple{Real, Real} = (-1, 1),
                         ybounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
-    X, Y = positions2D(Fx, Fy, startPoint = startPoint, time = time, timePoints = timePoints)
-    X = X[xbounds[1] .< X .< xbounds[2]]
-    Y = Y[ybounds[1] .< Y .< ybounds[2]]
-
-    # X and Y must have the same length for plotting
-    cut = min(length(X), length(Y))
-    X, Y = X[1:cut], Y[1:cut]
-    ts = LinRange(0, cut, 10*cut) # range only for color gradient
+    bodies = @. Body2D(positions2D(Fx, Fy, startPoint, time = time, timePoints = timePoints))
+    bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds)
 
     if showField
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
-        lines!(scene, X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
     else
-        scene = lines(X, Y, linewidth=linewidth, color=ts, colormap=:grayC)
+        scene = Scene()
     end
 
-    scatter!(scene, [X[end]], [Y[end]], markersize=xbounds[2]/20)
+    plotBody.(scene, bodies, linewidth)
 
     scene |> display
     return scene
 
 end
 
-# Example
-
-trajectory2D((x,y)->-y, (x,y)->x, xbounds=(-2,2), ybounds=(-2,2), linewidth=3, startPoint = [1, 1])
-
 
 # function for calculating position (x(t), y(t), z(t)) of an object
-function positions3D(Fx::Function, Fy::Function, Fz::Function;
-                    startPoint::Array{T, 1} = [0, 0, 0], # starting position
+function positions3D(Fx::Function, Fy::Function, Fz::Function, startPoint::Array{T, 1} = [0, 0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
                     timePoints::Integer = 100) where T <: Real # timepoints for interpolation
 
@@ -247,18 +300,9 @@ function positions3D(Fx::Function, Fy::Function, Fz::Function;
 end
 
 
-# Example
-X, Y, Z = positions3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
-                        startPoint = [0.5, 0.5, -2], time=(0, 10), timePoints=500)
-xk2 = X[end] # Current x position
-yk2 = Y[end] # Current y position
-zk2 = Z[end] # Current z position
-
-
 # function for plotting trajectory based on calculations from "position3D"
-function trajectory3D(Fx::Function, Fy::Function, Fz::Function;
+function trajectory3D(Fx::Function, Fy::Function, Fz::Function, startPoint::Array{Array{T, 1}, 1} = [[0, 0, 0]];
                         showField::Bool = :false,
-                        startPoint::Array{T, 1} = [0, 0, 0],
                         time::Tuple{Real, Real} = (0, 1),
                         timePoints::Integer = 100,
                         xbounds::Tuple{Real, Real} = (-1, 1),
@@ -266,57 +310,22 @@ function trajectory3D(Fx::Function, Fy::Function, Fz::Function;
                         zbounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
-    X, Y, Z = positions3D(Fx, Fy, Fz, startPoint = startPoint, time = time, timePoints = timePoints)
-
-    X = X[xbounds[1] .< X .< xbounds[2]]
-    Y = Y[ybounds[1] .< Y .< ybounds[2]]
-    Z = Z[zbounds[1] .< Z .< zbounds[2]]
-
-    # X, Y and Z must have the same length for plotting
-    cut = min(length(X), length(Y), length(Z))
-    X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
-    ts = LinRange(0, cut, 10*cut) # range only for color gradient
+    bodies = @. Body3D(positions3D(Fx, Fy, Fz, startPoint = startPoint, time = time, timePoints = timePoints))
+    bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     if showField
         scene = field3D(Fx, Fy, Fz,
                     xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
-        lines!(scene, X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
     else
-        scene = lines(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
+        scene = Scene()
     end
 
-    scatter!(scene, [X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/20)
+    plotBody.(scene, bodies, linewidth)
 
     scene |> display
     return scene
 
 end
-
-
-function trajectory3D(X::RecursiveArrayTools.AbstractDiffEqArray,
-                      Y::RecursiveArrayTools.AbstractDiffEqArray,
-                      Z::RecursiveArrayTools.AbstractDiffEqArray;
-                      xbounds::Tuple{Real, Real} = (-1, 1),
-                      ybounds::Tuple{Real, Real} = (-1, 1),
-                      zbounds::Tuple{Real, Real} = (-1, 1),
-                      linewidth::Real = 3)
-
-    X = X[xbounds[1] .< X .< xbounds[2]]
-    Y = Y[ybounds[1] .< Y .< ybounds[2]]
-    Z = Z[zbounds[1] .< Z .< zbounds[2]]
-
-    # X, Y and Z must have the same length for plotting
-    cut = min(length(X), length(Y), length(Z))
-    X, Y, Z = X[1:cut], Y[1:cut], Z[1:cut]
-    ts = LinRange(0, cut, 10*cut) # range only for color gradient
-    lines(X, Y, Z, linewidth=linewidth, color=ts, colormap=:grayC)
-    meshscatter!([X[end]], [Y[end]], [Z[end]], markersize=xbounds[2]/30) |> display
-    return AbstractPlotting.current_scene()
-end
-# Example
-trajectory3D((x,y,z)->2*x,(x,y,z)->-2*y,(x,y,z)->-2*z,
-                        startPoint = [0.5, 0.5, -2], time=(0, 100),
-                        timePoints=1000, xbounds=(-2,2),ybounds=(-2,2),zbounds=(-2,2), linewidth=4)
 
 
 # Plot a vector field from gradient of given two-variables function
@@ -354,10 +363,6 @@ function gradientField2D(f::Function,
 end
 
 
-# Example
-# gradientField2D((x, y) -> x*exp(-x^2-y^2), (-2, 2), (-2, 2))
-
-
 function gradientField3D(f::Function;
                             xbounds::Tuple{Real, Real} = (-1, 1),
                             ybounds::Tuple{Real, Real} = (-1, 1),
@@ -385,10 +390,7 @@ function gradientField3D(f::Function;
     scene |> display
     return scene
 
-# end
-
-# Example
-# gradientField3D((x, y, z)->sin(x*y*z), (-1, 1), (-1, 1), (-1, 1))
+end
 
 
 function divergence(position::Array{T, 1}, fx::Function, fy::Function,
@@ -454,15 +456,6 @@ function animate2D(X::RecursiveArrayTools.AbstractDiffEqArray,
 end
 
 
-
-
-# Example
-s = field2D((x,y)->[-y, cos(x-y)], (-3,3),(-3,3))
-
-X, Y = position2D((x, y)->-y, (x, y)->cos(x-y), xy0=[-1.5, -1.5], tspan=(0., 5.))
-animate2D(X, Y, "Example2DT.gif", xbounds=(-3, 3), ybounds=(-3, 3))
-
-
 function animate3D(
                    X::RecursiveArrayTools.AbstractDiffEqArray,
                    Y::RecursiveArrayTools.AbstractDiffEqArray,
@@ -493,7 +486,5 @@ function animate3D(
    end
 end
 
-X, Y, Z = position3D((x, y, z)-> y, (x, y, z)-> -x, (x, y, z)-> 2, xyz0=[0.5, -0.5, -1.5], tspan=(0., 7.))
-animate3D(X, Y, Z, "Example3D.gif", xbounds=(-5, 5), ybounds=(-5, 5), zbounds=(-5, 5), fps=24)
 
 # end
