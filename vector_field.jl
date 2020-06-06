@@ -218,11 +218,11 @@ function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer 
         if typeof(body) == Body3D
             lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame], body.Z[1:stopFrame],
                     linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
-            scatter!(scene, [body.X[end]], [body.Y[end]], [body.Z[end]], markersize=body.X[end]/20)
+            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], [body.Z[stopFrame]], markersize=body.X[stopFrame]/20)
         else
-            lines!(scene, body.X, body.Y,
-                    linewidth = linewidth, color = body.colors, colormap = :grayC)
-            scatter!(scene, [body.X[end]], [body.Y[end]], markersize=body.X[end]/20)
+            lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame],
+                    linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
+            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], markersize=body.X[stopFrame]/20)
         end
     end
 
@@ -268,7 +268,7 @@ function trajectory2D(Fx::Function, Fy::Function,
     if showField
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
     end
 
     plotBody.(bodies, scene, linewidth)
@@ -319,9 +319,8 @@ function trajectory3D(Fx::Function, Fy::Function, Fz::Function,
     if showField
         scene = field3D(Fx, Fy, Fz,
                     xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
-        plotBody.(bodies, scene, linewidth)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]] visible = :false)
     end
 
     plotBody.(bodies, scene, linewidth)
@@ -333,8 +332,9 @@ end
 
 # Plot a vector field from gradient of given two-variables function
 function gradientField2D(f::Function,
-                            xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
-                            showContour::Bool=:true)
+                            xbounds::Tuple{Real, Real},
+                            ybounds::Tuple{Real, Real},
+                            showContour::Bool = :false)
 
     # Create points from given intervals
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
@@ -431,59 +431,14 @@ function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
 
 end
 
-"""
-function animate2D(Fx::Function, Fy::Function,
-                    startPoints::Array{Array{T, 1}, 1}, # starting position
-                    title::String;
-                    showField::Bool = :false,
-                    time::Tuple{Real, Real} = (0, 1), # time
-                    timePoints::Integer = 100,
-                    xbounds::Tuple{Real, Real} = (-1, 1),
-                    ybounds::Tuple{Real, Real} = (-1, 1),
-                    fps::Integer = 24,
-                    linewidth::Real = 3) where T <: Real
 
-    xys = [] # Array for tuples: [(X1, Y1), (X2, Y2), ...]
-    for startPoint in startPoints
-        X, Y = positions2D(Fx, Fy, startPoint = startPoint, time = time, timePoints = timePoints)
-        X = X[xbounds[1] .< X .< xbounds[2]]
-        Y = Y[ybounds[1] .< Y .< ybounds[2]]
-        cut = min(length(X), length(Y)) # X and Y must have the same length for plotting
-        X, Y = X[1:cut], Y[1:cut] # X and Y must have the same length for plotting
-        push!(xys, (X, Y)) # Add particle's coordinates to main Array
-    end
+function addPlot!(bodies, scene, linewidth; stopFrame = 1)
 
-    if showField
-        scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
-        for xy in xys # some plots for future removing
-            lines!([1], [1], visible=false)
-            lines!([1], [1], visible=false)
-        end
-    else
-        scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
-        for xy in xys # some plots for future removing
-            lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2])
-        end
-    end
+    plotBody.(bodies, scene, linewidth, stopFrame = stopFrame)
+    return scene
 
-    color_g = min(length(xys[1][1]), length(xys[1][2])) # color gradient
-    ts = LinRange(0, color_g, 10*color_g) # range only for color gradient
-
-    record(scene, title, 1:length(xys[1][1])-1; framerate = fps) do i
-        for xy in xys # first removing: useless plots, every next time: old trajectory and dot
-            delete!(scene, scene[end])
-            delete!(scene, scene[end])
-        end
-        for xy in xys # draw new trajectory and new dot
-          lines!(scene, xy[1][1:i], xy[2][1:i], linewidth=linewidth, color=ts, colormap=:grayC)
-          scatter!(scene, [xy[1][i]], [xy[2][i]], markersize=xbounds[2]/20)
-        end
-    end
 end
 
-animate2DTEST((x, y)->y, (x, y)->-x, "Example2D.gif",
-xbounds=(-1, 1), ybounds=(-1, 1), startPoints=[[0.5, 0.5], [-0.5, 0.5], [0.6, 0.2], [-0.4, -0.4], [0.1, -0.1]], time=(0., 5.), showField=:true)
-"""
 
 function animate2D(Fx::Function, Fy::Function,
                     startPoints::Array{Array{T, 1}, 1}, # starting positions
@@ -497,57 +452,48 @@ function animate2D(Fx::Function, Fy::Function,
                     linewidth::Real = 3) where T <: Real
 
     bodies = @. Body2D(positions2D(Fx, Fy, startPoints, time = time, timePoints = timePoints))
-    #bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds)
 
     if showField
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
     end
 
-    record(scene, title, 1:length(bodies[1].colors)-1, framerate = fps) do frame
-        plotBody.(bodies, scene, linewidth, stopFrame = frame)
-        delete!(scene, scene[end])
+    record(scene, title, 1:timePoints, framerate = fps) do frame
+        addPlot!(bodies, scene, linewidth, stopFrame = frame)
     end
 
-    #scene |> display
-    #return scene
+    return scene
 
 end
 
 
-animate2D((x, y)->y, (x, y)->-x, [[0.5, 0.5], [-0.5, 0.5], [0.6, 0.2], [-0.4, -0.4], [0.1, -0.1]], "Example2D.gif", showField = :true)
+function animate3D(Fx::Function, Fy::Function, Fz::Function,
+                    startPoints::Array{Array{T, 1}, 1}, # starting positions
+                    title::String;
+                    showField::Bool = :false,
+                    time::Tuple{Real, Real} = (0, 1), # time
+                    timePoints::Integer = 100,
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    zbounds::Tuple{Real, Real} = (-1, 1),
+                    fps::Integer = 30,
+                    linewidth::Real = 3) where T <: Real
 
+    bodies = @. Body3D(positions3D(Fx, Fy, Fz, startPoints, time = time, timePoints = timePoints))
 
+    if showField
+        scene = field3D(Fx, Fy, Fz, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
+    else
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
+    end
 
-function animate3D(
-                   X::RecursiveArrayTools.AbstractDiffEqArray,
-                   Y::RecursiveArrayTools.AbstractDiffEqArray,
-                   Z::RecursiveArrayTools.AbstractDiffEqArray,
-                   title::String;
-                   xbounds::Tuple{Real, Real} = (-1, 1),
-                   ybounds::Tuple{Real, Real} = (-1, 1),
-                   zbounds::Tuple{Real, Real} = (-1, 1),
-                   linewidth::Real = 3,
-                   fps::Integer=24,
-                   drawField::Bool=false,
-                   Field::Scene=Scene())
+    record(scene, title, 1:timePoints, framerate = fps) do frame
+        addPlot!(bodies, scene, linewidth, stopFrame = frame)
+    end
 
-    if drawField == true
-      scene = Field
-      lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
-      lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
-   else
-       scene = lines(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2], visible=false)
-       lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
-       lines!(xbounds[1]:xbounds[2], ybounds[1]:ybounds[2], zbounds[1]:zbounds[2])
-   end
-    record(scene, title, 1:length(X)-1; framerate = fps) do i
-       delete!(scene, scene[end])
-       delete!(scene, scene[end])
-       trajectory3D!(X[1:i], Y[1:i], Z[1:i], xbounds=xbounds, ybounds=ybounds, zbounds=zbounds, linewidth=linewidth)
+    return scene
 
-   end
 end
 
 
