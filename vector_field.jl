@@ -225,7 +225,7 @@ function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer 
         else
             lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame],
                     linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
-            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], markersize=body.X[stopFrame]/20)
+            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], markersize=linewidth/70)
         end
     end
 
@@ -451,8 +451,24 @@ function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
 end
 
 
+function clearTrail(body::Body, scene::Scene)
+    delete!(scene, scene[end])
+    delete!(scene, scene[end])
+end
+
+function dummyPlots2D(body::Body, scene::Scene, xbounds, ybounds)
+    lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
+    lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+end
+
+function dummyPlots3D(body::Body, scene::Scene, xbounds, ybounds)
+    lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
+    lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+end
+
 function addPlot!(bodies, scene, linewidth; stopFrame = 1)
 
+    clearTrail.(bodies, scene)
     plotBody.(bodies, scene, linewidth, stopFrame = stopFrame)
     return scene
 
@@ -476,6 +492,9 @@ function animate(Fx::Function, Fy::Function,
         scene = field(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
+        for body in bodies
+            dummyPlots2D(body, scene, xbounds, ybounds)
+        end
     end
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
@@ -505,6 +524,9 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
         scene = field(Fx, Fy, Fz, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
     else
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
+        for body in bodies
+            dummyPlots3D(body, scene, xbounds, ybounds)
+        end
     end
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
