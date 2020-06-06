@@ -177,6 +177,60 @@ function field3D(Fx::Function, Fy::Function, Fz::Function;
 end
 
 
+function cutPositions(body::Body;
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    zbounds::Tuple{Real, Real} = (-1, 1))
+
+    body.X = body.X[xbounds[1] .< body.X .< xbounds[2]]
+    body.Y = body.Y[ybounds[1] .< body.Y .< ybounds[2]]
+    if typeof(body) == Body3D
+        body.Z = body.Z[zbounds[1] .< body.Z .< zbounds[2]]
+        # X and Y must have the same length for plotting
+        cut = min(length(body.X), length(body.Y), length(body.Z))
+        if cut > 0
+            body.X = body.X[1:cut]
+            body.Y = body.Y[1:cut]
+            body.Z = body.Z[1:cut]
+            body.colors = LinRange(0, cut, 10*cut)
+        else
+            body.inBounds = :false
+        end
+    else
+        cut = min(length(body.X), length(body.Y))
+        if cut > 0
+            body.X = body.X[1:cut]
+            body.Y =  body.Y[1:cut]
+            body.colors = LinRange(0, cut, 10*cut)
+        else
+            body.inBounds = :false
+        end
+    end
+
+    return body
+
+end
+
+
+function plotBody(body::Body, scene::Scene, linewidth::Real)
+
+    if body.inBounds
+        if typeof(body) == Body3D
+            lines!(scene, body.X, body.Y, body.Z,
+                    linewidth = linewidth, color = body.colors, colormap = :grayC)
+            scatter!(scene, [body.X[end]], [body.Y[end]], [body.Z[end]], markersize=body.X[end]/20)
+        else
+            lines!(scene, body.X, body.Y,
+                    linewidth = linewidth, color = body.colors, colormap = :grayC)
+            scatter!(scene, [body.X[end]], [body.Y[end]], markersize=body.X[end]/20)
+        end
+    end
+
+    return scene
+
+end
+
+
 # function for calculating position (x(t), y(t)) of an object
 function positions2D(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
@@ -198,62 +252,9 @@ function positions2D(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0
 end
 
 
-function cutPositions(body::Body;
-                    xbounds::Tuple{Real, Real} = (-1, 1),
-                    ybounds::Tuple{Real, Real} = (-1, 1),
-                    zbounds::Tuple{Real, Real} = (-1, 1))
-
-    body.X = body.X[xbounds[1] .< body.X .< xbounds[2]]
-    body.Y = body.Y[ybounds[1] .< body.Y .< ybounds[2]]
-    if typeof(body) == Body3D
-        body.Z = body.Z[zbounds[1] .< body.Z .< zbounds[2]]
-        # X and Y must have the same length for plotting
-        cut = min(length(object.X), length(object.Y))
-        if cut > 0
-            body.X = body.X[1:cut]
-            body.Y = body.Y[1:cut]
-            body.Z = body.Z[1:cut]
-            body.colors = LinRange(0, cut, 10*cut)
-        else
-            body.inBounds = :false
-        end
-    else
-        cut = min(length(object.X), length(object.Y))
-        if cut > 0
-            body.X = body.X[1:cut]
-            body.Y =  body.Y[1:cut]
-            body.colors = LinRange(0, cut, 10*cut)
-        else
-            body.inBounds = :false
-        end
-    end
-
-    return body
-
-end
-
-
-function plotBody(scene::Scene, body::Body, linewidth::Real)
-
-    if body.inBounds
-        if typeof(body) == Body3D
-            lines!(scene, body.X, body.Y, body.Z,
-                    linewidth = linewidth, color = body.colors, colormap = :grayC)
-            scatter!(scene, [body.X[end]], [body.Y[end]], [body.Z[end]], markersize=body.X[end]/20)
-        else
-            lines!(scene, body.X, body.Y,
-                    linewidth = linewidth, color = body.colors, colormap = :grayC)
-            scatter!(scene, [body.X[end]], [body.Y[end]], markersize=body.X[end]/20)
-        end
-    end
-
-    return scene
-
-end
-
-
 # function for plotting trajectory based on calculations from "position2D"
-function trajectory2D(Fx::Function, Fy::Function, startPoint::Array{Array{T, 1}, 1} = [[0, 0]];  # starting position
+function trajectory2D(Fx::Function, Fy::Function,
+                        startPoints::Array{Array{T, 1}, 1};  # starting positions
                         showField::Bool = :false,
                         time::Tuple{Real, Real} = (0, 1), # time
                         timePoints::Integer = 100,
@@ -261,7 +262,7 @@ function trajectory2D(Fx::Function, Fy::Function, startPoint::Array{Array{T, 1},
                         ybounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
-    bodies = @. Body2D(positions2D(Fx, Fy, startPoint, time = time, timePoints = timePoints))
+    bodies = @. Body2D(positions2D(Fx, Fy, startPoints, time = time, timePoints = timePoints))
     bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds)
 
     if showField
@@ -270,7 +271,7 @@ function trajectory2D(Fx::Function, Fy::Function, startPoint::Array{Array{T, 1},
         scene = Scene()
     end
 
-    plotBody.(scene, bodies, linewidth)
+    plotBody.(bodies, scene, linewidth)
 
     scene |> display
     return scene
@@ -279,7 +280,8 @@ end
 
 
 # function for calculating position (x(t), y(t), z(t)) of an object
-function positions3D(Fx::Function, Fy::Function, Fz::Function, startPoint::Array{T, 1} = [0, 0, 0]; # starting position
+function positions3D(Fx::Function, Fy::Function, Fz::Function,
+                    startPoint::Array{T, 1} = [0, 0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
                     timePoints::Integer = 100) where T <: Real # timepoints for interpolation
 
@@ -301,7 +303,8 @@ end
 
 
 # function for plotting trajectory based on calculations from "position3D"
-function trajectory3D(Fx::Function, Fy::Function, Fz::Function, startPoint::Array{Array{T, 1}, 1} = [[0, 0, 0]];
+function trajectory3D(Fx::Function, Fy::Function, Fz::Function,
+                        startPoints::Array{Array{T, 1}, 1};
                         showField::Bool = :false,
                         time::Tuple{Real, Real} = (0, 1),
                         timePoints::Integer = 100,
@@ -310,18 +313,18 @@ function trajectory3D(Fx::Function, Fy::Function, Fz::Function, startPoint::Arra
                         zbounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
-    bodies = @. Body3D(positions3D(Fx, Fy, Fz, startPoint = startPoint, time = time, timePoints = timePoints))
+    bodies = @. Body3D(positions3D(Fx, Fy, Fz, startPoints, time = time, timePoints = timePoints))
     bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     if showField
         scene = field3D(Fx, Fy, Fz,
                     xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
+        plotBody.(bodies, scene, linewidth)
     else
         scene = Scene()
     end
 
-    plotBody.(scene, bodies, linewidth)
-
+    plotBody.(bodies, scene, linewidth)
     scene |> display
     return scene
 
