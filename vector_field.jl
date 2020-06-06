@@ -222,7 +222,7 @@ function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer 
         else
             lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame],
                     linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
-            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], markersize=body.X[stopFrame]/20)
+            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], markersize=linewidth/70)
         end
     end
 
@@ -432,8 +432,24 @@ function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
 end
 
 
+function clearTrail(body::Body, scene::Scene)
+    delete!(scene, scene[end])
+    delete!(scene, scene[end])
+end
+
+function dummyPlots2D(body::Body, scene::Scene, xbounds, ybounds)
+    lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
+    lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+end
+
+function dummyPlots3D(body::Body, scene::Scene, xbounds, ybounds)
+    lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
+    lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+end
+
 function addPlot!(bodies, scene, linewidth; stopFrame = 1)
 
+    clearTrail.(bodies, scene)
     plotBody.(bodies, scene, linewidth, stopFrame = stopFrame)
     return scene
 
@@ -457,6 +473,9 @@ function animate2D(Fx::Function, Fy::Function,
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
+        for body in bodies
+            dummyPlots2D(body, scene, xbounds, ybounds)
+        end
     end
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
@@ -467,6 +486,8 @@ function animate2D(Fx::Function, Fy::Function,
 
 end
 
+animate2D((x, y)->x*y, (x, y)->-x,
+ [[0.1, 0.2], [-0.3, 0.4], [-0.7, -0.2], [0.4, 0.5]], "New2D.gif", showField=:false, time=(0., 5.))
 
 function animate3D(Fx::Function, Fy::Function, Fz::Function,
                     startPoints::Array{Array{T, 1}, 1}, # starting positions
@@ -486,6 +507,9 @@ function animate3D(Fx::Function, Fy::Function, Fz::Function,
         scene = field3D(Fx, Fy, Fz, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
     else
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
+        for body in bodies
+            dummyPlots3D(body, scene, xbounds, ybounds)
+        end
     end
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
@@ -496,5 +520,7 @@ function animate3D(Fx::Function, Fy::Function, Fz::Function,
 
 end
 
-
+animate3D((x, y, z)->y, (x, y, z)->-x, (x, y, z)->z,
+ [[0.1, 0.2, -0.4], [-0.3, 0.4, 0.3], [-0.7, -0.2, 0.2], [0.4, 0.5, -0.1], [-0.4, -0.5, 0.1]],
+ "New23.gif", showField=:false, time=(0., 5.), xbounds=(-2, 2), ybounds=(-2, 2), zbounds=(-2, 2))
 # end
