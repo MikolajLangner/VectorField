@@ -514,6 +514,7 @@ function animate3D(Fx::Function, Fy::Function, Fz::Function,
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
         addPlot!(bodies, scene, linewidth, stopFrame = frame)
+        rotate_cam!(scene, 6/timePoints, 0.0, 0.0)
     end
 
     return scene
