@@ -486,8 +486,6 @@ function animate2D(Fx::Function, Fy::Function,
 
 end
 
-animate2D((x, y)->x*y, (x, y)->-x,
- [[0.1, 0.2], [-0.3, 0.4], [-0.7, -0.2], [0.4, 0.5]], "New2D.gif", showField=:false, time=(0., 5.))
 
 function animate3D(Fx::Function, Fy::Function, Fz::Function,
                     startPoints::Array{Array{T, 1}, 1}, # starting positions
@@ -521,7 +519,5 @@ function animate3D(Fx::Function, Fy::Function, Fz::Function,
 
 end
 
-animate3D((x, y, z)->y, (x, y, z)->-x, (x, y, z)->z,
- [[0.1, 0.2, -0.4], [-0.3, 0.4, 0.3], [-0.7, -0.2, 0.2], [0.4, 0.5, -0.1], [-0.4, -0.5, 0.1]],
- "New23.gif", showField=:false, time=(0., 5.), xbounds=(-2, 2), ybounds=(-2, 2), zbounds=(-2, 2))
+
 # end
