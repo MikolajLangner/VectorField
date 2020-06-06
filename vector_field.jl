@@ -268,7 +268,7 @@ function trajectory2D(Fx::Function, Fy::Function,
     if showField
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
     end
 
     plotBody.(bodies, scene, linewidth)
@@ -320,7 +320,7 @@ function trajectory3D(Fx::Function, Fy::Function, Fz::Function,
         scene = field3D(Fx, Fy, Fz,
                     xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]] visible = :false)
     end
 
     plotBody.(bodies, scene, linewidth)
@@ -332,8 +332,9 @@ end
 
 # Plot a vector field from gradient of given two-variables function
 function gradientField2D(f::Function,
-                            xbounds::Tuple{Real, Real}, ybounds::Tuple{Real, Real},
-                            showContour::Bool=:true)
+                            xbounds::Tuple{Real, Real},
+                            ybounds::Tuple{Real, Real},
+                            showContour::Bool = :false)
 
     # Create points from given intervals
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
@@ -455,7 +456,7 @@ function animate2D(Fx::Function, Fy::Function,
     if showField
         scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
-        scene = Scene()
+        scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
     end
 
     record(scene, title, 1:timePoints, framerate = fps) do frame
