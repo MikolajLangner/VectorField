@@ -61,7 +61,7 @@ mutable struct Body2D <: Body
     colors::LinRange
     inBounds::Bool
 
-    Body2D(t::Tuple) = new(t[1], t[2], LinRange(0, 1, 100), :true)
+    Body2D(t::Tuple) = new(t[1], t[2], LinRange(0, length(t[1]), 10length(t[1])), :true)
 
 end
 
@@ -74,7 +74,7 @@ mutable struct Body3D <: Body
     colors::LinRange
     inBounds::Bool
 
-    Body3D(t::Tuple) = new(t[1], t[2], t[3], LinRange(0, 1, 100), :true)
+    Body3D(t::Tuple) = new(t[1], t[2], t[3], LinRange(0, length(t[1]), 10length(t[1])), :true)
 
 end
 
@@ -178,9 +178,9 @@ end
 
 
 function cutPositions(body::Body;
-                    xbounds::Tuple{Real, Real} = (-1, 1),
-                    ybounds::Tuple{Real, Real} = (-1, 1),
-                    zbounds::Tuple{Real, Real} = (-1, 1))
+                        xbounds::Tuple{Real, Real} = (-1, 1),
+                        ybounds::Tuple{Real, Real} = (-1, 1),
+                        zbounds::Tuple{Real, Real} = (-1, 1))
 
     body.X = body.X[xbounds[1] .< body.X .< xbounds[2]]
     body.Y = body.Y[ybounds[1] .< body.Y .< ybounds[2]]
@@ -212,12 +212,12 @@ function cutPositions(body::Body;
 end
 
 
-function plotBody(body::Body, scene::Scene, linewidth::Real)
+function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer = length(body.X))
 
     if body.inBounds
         if typeof(body) == Body3D
-            lines!(scene, body.X, body.Y, body.Z,
-                    linewidth = linewidth, color = body.colors, colormap = :grayC)
+            lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame], body.Z[1:stopFrame],
+                    linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
             scatter!(scene, [body.X[end]], [body.Y[end]], [body.Z[end]], markersize=body.X[end]/20)
         else
             lines!(scene, body.X, body.Y,
@@ -431,16 +431,17 @@ function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
 
 end
 
-
-function animate2D(Fx::Function, Fy::Function, title::String;
-                        showField::Bool = :false,
-                        startPoints::Array = [[0, 0]], # starting position
-                        time::Tuple{Real, Real} = (0, 1), # time
-                        timePoints::Integer = 100,
-                        xbounds::Tuple{Real, Real} = (-1, 1),
-                        ybounds::Tuple{Real, Real} = (-1, 1),
-                        fps::Integer = 24,
-                        linewidth::Real = 3) where T <: Real
+"""
+function animate2D(Fx::Function, Fy::Function,
+                    startPoints::Array{Array{T, 1}, 1}, # starting position
+                    title::String;
+                    showField::Bool = :false,
+                    time::Tuple{Real, Real} = (0, 1), # time
+                    timePoints::Integer = 100,
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    fps::Integer = 24,
+                    linewidth::Real = 3) where T <: Real
 
     xys = [] # Array for tuples: [(X1, Y1), (X2, Y2), ...]
     for startPoint in startPoints
@@ -482,6 +483,41 @@ end
 
 animate2DTEST((x, y)->y, (x, y)->-x, "Example2D.gif",
 xbounds=(-1, 1), ybounds=(-1, 1), startPoints=[[0.5, 0.5], [-0.5, 0.5], [0.6, 0.2], [-0.4, -0.4], [0.1, -0.1]], time=(0., 5.), showField=:true)
+"""
+
+function animate2D(Fx::Function, Fy::Function,
+                    startPoints::Array{Array{T, 1}, 1}, # starting positions
+                    title::String;
+                    showField::Bool = :false,
+                    time::Tuple{Real, Real} = (0, 1), # time
+                    timePoints::Integer = 100,
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    fps::Integer = 30,
+                    linewidth::Real = 3) where T <: Real
+
+    bodies = @. Body2D(positions2D(Fx, Fy, startPoints, time = time, timePoints = timePoints))
+    #bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds)
+
+    if showField
+        scene = field2D(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
+    else
+        scene = Scene()
+    end
+
+    record(scene, title, 1:length(bodies[1].colors)-1, framerate = fps) do frame
+        plotBody.(bodies, scene, linewidth, stopFrame = frame)
+        delete!(scene, scene[end])
+    end
+
+    #scene |> display
+    #return scene
+
+end
+
+
+animate2D((x, y)->y, (x, y)->-x, [[0.5, 0.5], [-0.5, 0.5], [0.6, 0.2], [-0.4, -0.4], [0.1, -0.1]], "Example2D.gif", showField = :true)
+
 
 
 function animate3D(
