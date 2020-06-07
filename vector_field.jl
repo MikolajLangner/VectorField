@@ -6,6 +6,7 @@ using LinearAlgebra
 using DifferentialEquations
 using ForwardDiff
 
+export field, positions, trajectory, gradientField, divergence, curl, animate
 
 # Supertype of ColorVectors (vectors with their colors, anchor points, etc).
 abstract type ColorVector end
