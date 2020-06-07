@@ -633,10 +633,10 @@ Also for three-variable functions.
 - `zbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for z coordinates.
 """
 function animate(Fx::Function, Fy::Function, Fz::Function,
-                    startPoints::Array{Array{T, 1}, 1}, # starting positions
-                    title::String;
+                    startPoints::Array{Array{T, 1}, 1},
+                    filename::String;
                     showField::Bool = :false,
-                    time::Tuple{Real, Real} = (0, 1), # time
+                    time::Tuple{Real, Real} = (0, 1),
                     timePoints::Integer = 100,
                     xbounds::Tuple{Real, Real} = (-1, 1),
                     ybounds::Tuple{Real, Real} = (-1, 1),
@@ -658,7 +658,7 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
     end
 
     # Make the animation
-    record(scene, title, 1:timePoints, framerate = fps) do frame
+    record(scene, filename, 1:timePoints, framerate = fps) do frame
         addPlot!(bodies, scene, linewidth, stopFrame = frame)
         rotate_cam!(scene, 6/timePoints, 0.0, 0.0) # rotation of a camera
     end
