@@ -160,7 +160,6 @@ function field(Fx::Function, Fy::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -197,7 +196,6 @@ function field(Fx::Function, Fy::Function, Fz::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -357,7 +355,6 @@ function trajectory(Fx::Function, Fy::Function,
     plotBody.(bodies, scene, linewidth)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -397,7 +394,6 @@ function trajectory(Fx::Function, Fy::Function, Fz::Function,
     plotBody.(bodies, scene, linewidth)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -431,7 +427,6 @@ function gradientField2D(f::Function; showContour::Bool = :false,
     end
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -461,7 +456,6 @@ function gradientField3D(f::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -640,7 +634,7 @@ Also for three-variable functions.
 """
 function animate(Fx::Function, Fy::Function, Fz::Function,
                     startPoints::Array{Array{T, 1}, 1}, # starting positions
-                    filename::String;
+                    title::String;
                     showField::Bool = :false,
                     time::Tuple{Real, Real} = (0, 1), # time
                     timePoints::Integer = 100,
@@ -664,7 +658,7 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
     end
 
     # Make the animation
-    record(scene, filename, 1:timePoints, framerate = fps) do frame
+    record(scene, title, 1:timePoints, framerate = fps) do frame
         addPlot!(bodies, scene, linewidth, stopFrame = frame)
         rotate_cam!(scene, 6/timePoints, 0.0, 0.0) # rotation of a camera
     end
