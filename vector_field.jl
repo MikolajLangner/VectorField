@@ -1,4 +1,4 @@
-# module VectorField
+module VectorField
 
 
 using Makie
@@ -116,16 +116,29 @@ end
 
 
 # Add vector to a plot with its parameters
-function plotVector(vector::ColorVector, scene::Scene)
+function plotVector(vector::ColorVector, scene::Scene;
+                    xbounds::Tuple{Real, Real} = (-1, 1),
+                    ybounds::Tuple{Real, Real} = (-1, 1),
+                    zbounds::Tuple{Real, Real} = (0, 0))
 
+    sumBounds = sum([bounds[2]-bounds[1] for bounds in [xbounds, ybounds, zbounds]])  # parameter for size of arrows
     arrows!(scene, [vector.anchorPoint], [vector.direction],
-            arrowsize = 0.05vector.size, linewidth = 4vector.size,
+            arrowsize = 0.01vector.size*sumBounds, linewidth = 2vector.size,
             linecolor = vector.color, arrowcolor = vector.color)
     return scene
 
 end
 
 
+"""
+    field(Fx::Function, Fy::Function; kwargs...)
+
+Plot a vector field of two-variable functions.
+
+# Arguments
+- `xbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for x coordinates.
+- `ybounds::Tuple{Real, Real} = (-1, 1)`: boundaries for y coordinates.
+"""
 function field(Fx::Function, Fy::Function;
                 xbounds::Tuple{Real, Real} = (-1, 1),
                 ybounds::Tuple{Real, Real} = (-1, 1))
@@ -138,12 +151,12 @@ function field(Fx::Function, Fy::Function;
     pointf(p::Point2f0) = [Fx(p...), Fy(p...)]
 
     # Create vectors
-    vectors = @. ColorVector2D(pointf(points), points, 10)
+    vectors = @. ColorVector2D(pointf(points), points, 40/((xbounds[2]-xbounds[1])+(ybounds[2]-ybounds[1])))
     vectors = differVectors(vectors)
 
     # Create a plot
     scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
-    plotVector.(vectors, scene)
+    plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds)
 
     # Display and return the plot
     scene |> display
@@ -152,6 +165,14 @@ function field(Fx::Function, Fy::Function;
 end
 
 
+"""
+    field(Fx::Function, Fy::Function, Fz::Function; kwargs...)
+
+Also for three-variable functions.
+
+# Arguments
+- `zbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for z coordinates.
+"""
 function field(Fx::Function, Fy::Function, Fz::Function;
                     xbounds::Tuple{Real, Real} = (-1, 1),
                     ybounds::Tuple{Real, Real} = (-1, 1),
@@ -166,12 +187,13 @@ function field(Fx::Function, Fy::Function, Fz::Function;
     pointf(p::Point3f0) = [Fx(p...), Fy(p...), Fz(p...)]
 
     # Create vectors
-    vectors = @. ColorVector3D(pointf(points), points, 2)
+    sumBounds = sum([bounds[2]-bounds[1] for bounds in [xbounds, ybounds, zbounds]])
+    vectors = @. ColorVector3D(pointf(points), points, 30/sumBounds)
     vectors = differVectors(vectors)
 
     # Create a plot
-    scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]] visible = :false)
-    plotVector.(vectors, scene)
+    scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
+    plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
     scene |> display
@@ -180,22 +202,25 @@ function field(Fx::Function, Fy::Function, Fz::Function;
 end
 
 
+# Keep only positions in boundaries
 function cutPositions(body::Body;
                         xbounds::Tuple{Real, Real} = (-1, 1),
                         ybounds::Tuple{Real, Real} = (-1, 1),
                         zbounds::Tuple{Real, Real} = (-1, 1))
 
+    # Check which points are in boundaries
     body.X = body.X[xbounds[1] .< body.X .< xbounds[2]]
     body.Y = body.Y[ybounds[1] .< body.Y .< ybounds[2]]
     if typeof(body) == Body3D
         body.Z = body.Z[zbounds[1] .< body.Z .< zbounds[2]]
-        # X and Y must have the same length for plotting
+
+        # X, Y and Z must have the same length for plotting
         cut = min(length(body.X), length(body.Y), length(body.Z))
         if cut > 0
             body.X = body.X[1:cut]
             body.Y = body.Y[1:cut]
             body.Z = body.Z[1:cut]
-            body.colors = LinRange(0, cut, 10*cut)
+            body.colors = LinRange(0, cut, 10cut)
         else
             body.inBounds = :false
         end
@@ -204,7 +229,7 @@ function cutPositions(body::Body;
         if cut > 0
             body.X = body.X[1:cut]
             body.Y =  body.Y[1:cut]
-            body.colors = LinRange(0, cut, 10*cut)
+            body.colors = LinRange(0, cut, 10cut)
         else
             body.inBounds = :false
         end
@@ -215,13 +240,15 @@ function cutPositions(body::Body;
 end
 
 
+# Plot objects with given specifications
 function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer = length(body.X))
 
+    # Check whether any of the points is in boundaries
     if body.inBounds
         if typeof(body) == Body3D
             lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame], body.Z[1:stopFrame],
                     linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
-            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], [body.Z[stopFrame]], markersize=body.X[stopFrame]/20)
+            scatter!(scene, [body.X[stopFrame]], [body.Y[stopFrame]], [body.Z[stopFrame]], markersize=linewidth/70)
         else
             lines!(scene, body.X[1:stopFrame], body.Y[1:stopFrame],
                     linewidth = linewidth, color = body.colors[1:10stopFrame], colormap = :grayC)
@@ -234,7 +261,15 @@ function plotBody(body::Body, scene::Scene, linewidth::Real; stopFrame::Integer 
 end
 
 
-# function for calculating position (x(t), y(t)) of an object
+"""
+    positions(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0]; kwargs...) where T <: Real
+
+Compute positions of an object for vector field of given two-variable functions.
+
+# Arguments
+- `time::Tuple{Real, Real} = (0, 1)`: boundaries for time which positions will be computed in.
+- `timePoints::Integer = 100`: number of positions (accuracy) to compute.
+"""
 function positions(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
                     timePoints::Integer = 100) where T <: Real # timepoints for interpolation
@@ -246,6 +281,7 @@ function positions(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0];
         du[2] = dy = Fy(x, y)
     end
 
+    # Define the `problem` and solve it
     prob = ODEProblem(diffeqs, Float64.(startPoint), Float64.(time))
     sol = solve(prob)
     ts = LinRange(time[1], time[2], timePoints)
@@ -255,7 +291,11 @@ function positions(Fx::Function, Fy::Function, startPoint::Array{T, 1} = [0, 0];
 end
 
 
-# function for calculating position (x(t), y(t), z(t)) of an object
+"""
+    positions(Fx::Function, Fy::Function, Fz::Function, startPoint::Array{T, 1} = [0, 0, 0]; kwargs...) where T <: Real
+
+Also for three-variable functions.
+"""
 function positions(Fx::Function, Fy::Function, Fz::Function,
                     startPoint::Array{T, 1} = [0, 0, 0]; # starting position
                     time::Tuple{Real, Real} = (0, 1), # time
@@ -269,6 +309,7 @@ function positions(Fx::Function, Fy::Function, Fz::Function,
         du[3] = dz = Fz(x, y, z)
     end
 
+    # Define the `problem` and solve it
     prob = ODEProblem(diffeqs, Float64.(startPoint), Float64.(time))
     sol = solve(prob)
     ts = LinRange(time[1], time[2], timePoints)
@@ -278,34 +319,57 @@ function positions(Fx::Function, Fy::Function, Fz::Function,
 end
 
 
-# function for plotting trajectory based on calculations from "position2D"
+"""
+    trajectory(Fx::Function, Fy::Function, startPoints::Array{Array{T, 1}, 1}; kwargs...) where T <: Real
+
+Plot full trajectories for objects with given `startPoints` and two-variable functions.
+
+# Arguments
+- `showField::Bool = :false`: flag to indicate whether plot vector field (arrows).
+- `time::Tuple{Real, Real} = (0, 1)`: boundaries for time which positions will be computed in.
+- `timePoints::Integer = 100`: number of positions (accuracy) to compute.
+- `xbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for x coordinates.
+- `ybounds::Tuple{Real, Real} = (-1, 1)`: boundaries for y coordinates.
+- `linewidth::Real = 3`: width of trajectories' lines.
+"""
 function trajectory(Fx::Function, Fy::Function,
-                        startPoints::Array{Array{T, 1}, 1};  # starting positions
+                        startPoints::Array{Array{T, 1}, 1};
                         showField::Bool = :false,
-                        time::Tuple{Real, Real} = (0, 1), # time
+                        time::Tuple{Real, Real} = (0, 1),
                         timePoints::Integer = 100,
                         xbounds::Tuple{Real, Real} = (-1, 1),
                         ybounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
+    # Create objects and keep only positions in boundaries
     bodies = @. Body2D(positions(Fx, Fy, startPoints, time = time, timePoints = timePoints))
     bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds)
 
+    # Create a plot (with or without vector field)
     if showField
         scene = field(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
     end
 
+    # Plot objects
     plotBody.(bodies, scene, linewidth)
 
+    # Display and return the plot
     scene |> display
     return scene
 
 end
 
 
-# function for plotting trajectory based on calculations from "position3D"
+"""
+    trajectory(Fx::Function, Fy::Function, Fz::Function, startPoints::Array{Array{T, 1}, 1}; kwargs...) where T <: Real
+
+Also for three-variable functions.
+
+# Arguments
+- `zbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for z coordinates.
+"""
 function trajectory(Fx::Function, Fy::Function, Fz::Function,
                         startPoints::Array{Array{T, 1}, 1};
                         showField::Bool = :false,
@@ -316,9 +380,11 @@ function trajectory(Fx::Function, Fy::Function, Fz::Function,
                         zbounds::Tuple{Real, Real} = (-1, 1),
                         linewidth::Real = 3) where T <: Real
 
+    # Create objects and keep only positions in boundaries
     bodies = @. Body3D(positions(Fx, Fy, Fz, startPoints, time = time, timePoints = timePoints))
     bodies = cutPositions.(bodies, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
+    # Create a plot (with or without vector field)
     if showField
         scene = field(Fx, Fy, Fz,
                     xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
@@ -326,18 +392,19 @@ function trajectory(Fx::Function, Fy::Function, Fz::Function,
         scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
     end
 
+    # Plot objects
     plotBody.(bodies, scene, linewidth)
+
+    # Display and return the plot
     scene |> display
     return scene
 
 end
 
 
-# Plot a vector field from gradient of given two-variables function
-function gradientField2D(f::Function;
+function gradientField2D(f::Function; showContour::Bool = :false,
                             xbounds::Tuple{Real, Real} = (-1, 1),
-                            ybounds::Tuple{Real, Real} = (-1, 1),
-                            showContour::Bool = :false)
+                            ybounds::Tuple{Real, Real} = (-1, 1))
 
     # Create points from given intervals
     points = [Point2f0(i, j) for i in LinRange(xbounds[1], xbounds[2], 20)
@@ -348,18 +415,18 @@ function gradientField2D(f::Function;
     ∇(p::Point2f0) = ForwardDiff.gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
-    vectors = @. ColorVector2D(∇(points), points, 10)
+    vectors = @. ColorVector2D(∇(points), points, 40/((xbounds[2]-xbounds[1])+(ybounds[2]-ybounds[1])))
     vectors = differVectors(vectors)
 
     # Create a plot
     scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], visible = :false)
-    plotVector.(vectors, scene)
+    plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds)
 
     # Plot contour, if needed
     if showContour
-        contour!(LinRange(xbounds[1], xbounds[2], 100),
-                 LinRange(ybounds[1], ybounds[2], 100),
-                 f.(LinRange(xbounds[1], xbounds[2], 100), LinRange(ybounds[1], ybounds[2], 100)'))
+        xs = LinRange(xbounds[1], xbounds[2], 100Integer(xbounds[2]-xbounds[1]))
+        ys = LinRange(ybounds[1], ybounds[2], 100Integer(ybounds[2]-ybounds[1]))
+        contour!(xs, ys, f.(xs, ys'))
     end
 
     # Display and return the plot
@@ -384,12 +451,13 @@ function gradientField3D(f::Function;
     ∇(p::Point3f0) = ForwardDiff.gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
-    vectors = @. ColorVector3D(∇(points), points, 10)
+    sumBounds = sum([bounds[2]-bounds[1] for bounds in [xbounds, ybounds, zbounds]])
+    vectors = @. ColorVector3D(∇(points), points, 30/sumBounds)
     vectors = differVectors(vectors)
 
     # Create a plot
     scene = lines([xbounds[1], xbounds[2]], [ybounds[1], ybounds[2]], [zbounds[1], zbounds[2]], visible = :false)
-    plotVector.(vectors, scene)
+    plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
     scene |> display
@@ -398,12 +466,23 @@ function gradientField3D(f::Function;
 end
 
 
-function gradientField(f::Function;
+"""
+    gradientField(f::Function; kwargs...)
+
+Plot a vector field of given two or three-variable function's gradient.
+
+# Arguments
+- `showContour::Bool = :false`: flag to indicate whether create contour plot.
+- `xbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for x coordinates.
+- `ybounds::Tuple{Real, Real} = (-1, 1)`: boundaries for y coordinates.
+- `zbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for z coordinates.
+"""
+function gradientField(f::Function; showContour::Bool = :false,
                         xbounds::Tuple{Real, Real} = (-1, 1),
                         ybounds::Tuple{Real, Real} = (-1, 1),
-                        zbounds::Tuple{Real, Real} = (-1, 1),
-                        showContour::Bool = :false)
+                        zbounds::Tuple{Real, Real} = (-1, 1))
 
+    # Indicate whether function is two or three-variable
     for method in methods(f)
         if length(method.sig.parameters) == 4
             return gradientField3D(f, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
@@ -415,10 +494,18 @@ function gradientField(f::Function;
 end
 
 
-function divergence(position::Array{T, 1}, Fx::Function, Fy::Function,
+"""
+    divergence(point::Array{T, 1}, Fx::Function, Fy::Function [, Fz]) where T <: Real
+
+Compute the divergence in given `point` of the two or three-variable functions by the formula:
+    div(F) = ∇ · F
+"""
+function divergence(point::Array{T, 1}, Fx::Function, Fy::Function,
                     Fz=missing) where T <: Real
 
-    vectorFunctions = []
+    vectorFunctions = []  # functions that take vectors container
+
+    # Define functions for vectors to compute gradient
     vectorFuncX(v::Vector) = Fx(v...)
     vectorFuncY(v::Vector) = Fy(v...)
     push!(vectorFunctions, vectorFuncX)
@@ -428,44 +515,63 @@ function divergence(position::Array{T, 1}, Fx::Function, Fy::Function,
         push!(vectorFunctions, vectorFuncZ)
     end
 
-    return sum([ForwardDiff.gradient(func, position)[variable]
+    return sum([ForwardDiff.gradient(func, point)[variable]
                 for (variable, func) in enumerate(vectorFunctions)])
 
 end
 
 
-function curl(position::Array{T, 1}, Fx::Function, Fy::Function,
+"""
+    curl(point::Array{T, 1}, Fx::Function, Fy::Function [, Fz]) where T <: Real
+
+Compute the curl in given `point` of the two or three-variable functions by the formula:
+    curl(F) = ∇ ✖ F
+"""
+function curl(point::Array{T, 1}, Fx::Function, Fy::Function,
                 Fz=missing) where T <: Real
 
+    # Define functions for vectors to compute gradient
     vectorFuncX(v::Vector) = Fx(v...)
     vectorFuncY(v::Vector) = Fy(v...)
     if typeof(Fz) <: Function
         vectorFuncZ(v::Vector) = Fz(v...)
-        return [ForwardDiff.gradient(vectorFuncZ, position)[2] - ForwardDiff.gradient(vectorFuncY, position)[3],
-                ForwardDiff.gradient(vectorFuncX, position)[3] - ForwardDiff.gradient(vectorFuncZ, position)[1],
-                ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+        return [ForwardDiff.gradient(vectorFuncZ, point)[2] - ForwardDiff.gradient(vectorFuncY, point)[3],
+                ForwardDiff.gradient(vectorFuncX, point)[3] - ForwardDiff.gradient(vectorFuncZ, point)[1],
+                ForwardDiff.gradient(vectorFuncY, point)[1] - ForwardDiff.gradient(vectorFuncX, point)[2]]
     else
-        return [0, 0, ForwardDiff.gradient(vectorFuncY, position)[1] - ForwardDiff.gradient(vectorFuncX, position)[2]]
+        return [0, 0, ForwardDiff.gradient(vectorFuncY, point)[1] - ForwardDiff.gradient(vectorFuncX, point)[2]]
     end
 
 end
 
 
+# Clear the plot
 function clearTrail(body::Body, scene::Scene)
+
     delete!(scene, scene[end])
     delete!(scene, scene[end])
+
 end
 
+
+# Add plots for start animation
 function dummyPlots2D(body::Body, scene::Scene, xbounds, ybounds)
+
     lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
     lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+
 end
+
 
 function dummyPlots3D(body::Body, scene::Scene, xbounds, ybounds)
+
     lines!(scene, xbounds[1]:xbounds[2], xbounds[1]:xbounds[2], xbounds[1]:xbounds[2]) # dummy trajectory
     lines!(scene, ybounds[1]:ybounds[2], ybounds[1]:ybounds[2], ybounds[1]:ybounds[2]) # dummy dot
+
 end
 
+
+# Add single frame to animation
 function addPlot!(bodies, scene, linewidth; stopFrame = 1)
 
     clearTrail.(bodies, scene)
@@ -475,19 +581,35 @@ function addPlot!(bodies, scene, linewidth; stopFrame = 1)
 end
 
 
+"""
+    animate(Fx::Function, Fy::Function, startPoints::Array{Array{T, 1}, 1}, filename::String; kwargs...) where T <: Real
+
+Create and save in `filename` an animation of objects' with `startPoints` movement in vector field of given two-variable functions.
+
+# Arguments
+- `showField::Bool = :false`: flag to indicate whether plot vector field (arrows).
+- `time::Tuple{Real, Real} = (0, 1)`: boundaries for time which positions will be computed in.
+- `timePoints::Integer = 100`: number of positions (accuracy) to compute.
+- `xbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for x coordinates.
+- `ybounds::Tuple{Real, Real} = (-1, 1)`: boundaries for y coordinates.
+- `fps::Integer = 30`: framerate of the animation.
+- `linewidth::Real = 3`: width of trajectories' lines.
+"""
 function animate(Fx::Function, Fy::Function,
-                    startPoints::Array{Array{T, 1}, 1}, # starting positions
-                    title::String;
+                    startPoints::Array{Array{T, 1}, 1},
+                    filename::String;
                     showField::Bool = :false,
-                    time::Tuple{Real, Real} = (0, 1), # time
+                    time::Tuple{Real, Real} = (0, 1),
                     timePoints::Integer = 100,
                     xbounds::Tuple{Real, Real} = (-1, 1),
                     ybounds::Tuple{Real, Real} = (-1, 1),
                     fps::Integer = 30,
                     linewidth::Real = 3) where T <: Real
 
+    # Create objects
     bodies = @. Body2D(positions(Fx, Fy, startPoints, time = time, timePoints = timePoints))
 
+    # Create plot (with or without vector field)
     if showField
         scene = field(Fx, Fy, xbounds = xbounds, ybounds = ybounds)
     else
@@ -497,7 +619,8 @@ function animate(Fx::Function, Fy::Function,
         end
     end
 
-    record(scene, title, 1:timePoints, framerate = fps) do frame
+    # Make the animation
+    record(scene, filename, 1:timePoints, framerate = fps) do frame
         addPlot!(bodies, scene, linewidth, stopFrame = frame)
     end
 
@@ -506,6 +629,14 @@ function animate(Fx::Function, Fy::Function,
 end
 
 
+"""
+    animate(Fx::Function, Fy::Function, Fz::Function, startPoints::Array{Array{T, 1}, 1}, filename::String; kwargs...) where T <: Real
+
+Also for three-variable functions.
+
+# Arguments
+- `zbounds::Tuple{Real, Real} = (-1, 1)`: boundaries for z coordinates.
+"""
 function animate(Fx::Function, Fy::Function, Fz::Function,
                     startPoints::Array{Array{T, 1}, 1}, # starting positions
                     title::String;
@@ -518,8 +649,10 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
                     fps::Integer = 30,
                     linewidth::Real = 3) where T <: Real
 
+    # Create objects
     bodies = @. Body3D(positions(Fx, Fy, Fz, startPoints, time = time, timePoints = timePoints))
 
+    # Create plot (with or without vector field)
     if showField
         scene = field(Fx, Fy, Fz, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
     else
@@ -529,9 +662,10 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
         end
     end
 
+    # Make the animation
     record(scene, title, 1:timePoints, framerate = fps) do frame
         addPlot!(bodies, scene, linewidth, stopFrame = frame)
-        rotate_cam!(scene, 6/timePoints, 0.0, 0.0)
+        rotate_cam!(scene, 6/timePoints, 0.0, 0.0) # rotation of a camera
     end
 
     return scene
@@ -539,4 +673,4 @@ function animate(Fx::Function, Fy::Function, Fz::Function,
 end
 
 
-# end
+end
