@@ -160,7 +160,6 @@ function field(Fx::Function, Fy::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -197,7 +196,6 @@ function field(Fx::Function, Fy::Function, Fz::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -357,7 +355,6 @@ function trajectory(Fx::Function, Fy::Function,
     plotBody.(bodies, scene, linewidth)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -397,7 +394,6 @@ function trajectory(Fx::Function, Fy::Function, Fz::Function,
     plotBody.(bodies, scene, linewidth)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -431,7 +427,6 @@ function gradientField2D(f::Function; showContour::Bool = :false,
     end
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
@@ -461,7 +456,6 @@ function gradientField3D(f::Function;
     plotVector.(vectors, scene, xbounds = xbounds, ybounds = ybounds, zbounds = zbounds)
 
     # Display and return the plot
-    scene |> display
     return scene
 
 end
