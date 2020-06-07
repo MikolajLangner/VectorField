@@ -2,9 +2,9 @@ module VectorField
 
 
 using Makie
-using LinearAlgebra
 using DifferentialEquations
-using ForwardDiff
+import LinearAlgebra: norm, normalize
+import ForwardDiff: gradient
 
 export field, positions, trajectory, gradientField, divergence, curl, animate
 
@@ -409,7 +409,7 @@ function gradientField2D(f::Function; showContour::Bool = :false,
 
     # Define functions to calculate gradient
     vectorf(v::Vector) = f(v...)
-    ∇(p::Point2f0) = ForwardDiff.gradient(vectorf, [p...])
+    ∇(p::Point2f0) = gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
     vectors = @. ColorVector2D(∇(points), points, 40/((xbounds[2]-xbounds[1])+(ybounds[2]-ybounds[1])))
@@ -444,7 +444,7 @@ function gradientField3D(f::Function;
 
     # Define functions to calculate gradient
     vectorf(v::Vector) = f(v...)
-    ∇(p::Point3f0) = ForwardDiff.gradient(vectorf, [p...])
+    ∇(p::Point3f0) = gradient(vectorf, [p...])
 
     # Create vectors with specified anchor points
     sumBounds = sum([bounds[2]-bounds[1] for bounds in [xbounds, ybounds, zbounds]])
@@ -510,7 +510,7 @@ function divergence(point::Array{T, 1}, Fx::Function, Fy::Function,
         push!(vectorFunctions, vectorFuncZ)
     end
 
-    return sum([ForwardDiff.gradient(func, point)[variable]
+    return sum([gradient(func, point)[variable]
                 for (variable, func) in enumerate(vectorFunctions)])
 
 end
@@ -530,11 +530,11 @@ function curl(point::Array{T, 1}, Fx::Function, Fy::Function,
     vectorFuncY(v::Vector) = Fy(v...)
     if typeof(Fz) <: Function
         vectorFuncZ(v::Vector) = Fz(v...)
-        return [ForwardDiff.gradient(vectorFuncZ, point)[2] - ForwardDiff.gradient(vectorFuncY, point)[3],
-                ForwardDiff.gradient(vectorFuncX, point)[3] - ForwardDiff.gradient(vectorFuncZ, point)[1],
-                ForwardDiff.gradient(vectorFuncY, point)[1] - ForwardDiff.gradient(vectorFuncX, point)[2]]
+        return [gradient(vectorFuncZ, point)[2] - gradient(vectorFuncY, point)[3],
+                gradient(vectorFuncX, point)[3] - gradient(vectorFuncZ, point)[1],
+                gradient(vectorFuncY, point)[1] - gradient(vectorFuncX, point)[2]]
     else
-        return [0, 0, ForwardDiff.gradient(vectorFuncY, point)[1] - ForwardDiff.gradient(vectorFuncX, point)[2]]
+        return [0, 0, gradient(vectorFuncY, point)[1] - gradient(vectorFuncX, point)[2]]
     end
 
 end
