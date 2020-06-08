@@ -10,3 +10,4 @@ Zawartość:
 * demonstracja/przewodnik: "przewodnik.ipynb"
 * plik z dodatkowymi przykładami: "examples.jl"
 * przykładowe animacje: folder "animation_examples" 
+
